@@ -1,0 +1,27 @@
+archetypes:
+  - name: "Strength_Type_A"
+    ideal_frequency_days: 3
+  - name: "Cardio_Type_B"
+    ideal_frequency_days: 2
+
+states:
+  - name: "RED"
+    condition: "knee_pain >= 6"
+  - name: "ORANGE"
+    condition: "(knee_pain >= 3) OR (energy <= 3)"
+  - name: "GREEN"
+    condition: "default"  # Everything else
+
+sessions:
+  - archetype: "Strength_Type_A"
+    name: "Upper Body Strength"
+    allowed_states: ["GREEN", "ORANGE"]
+    exercises:
+      - "Bench Press"
+      - "Rows"
+  - archetype: "Cardio_Type_B"
+    name: "High Impact Cardio"
+    allowed_states: ["GREEN"]
+    exercises:
+      - "Running"
+      - "Jumping"
