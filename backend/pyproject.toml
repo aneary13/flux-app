@@ -1,12 +1,17 @@
 [project]
 name = "flux-backend"
-version = "0.1.0"
+version = "0.2.0"
 description = "FLUX - Backend Logic Core"
 requires-python = ">=3.13"
 dependencies = [
     "pydantic>=2.0",
     "pyyaml>=6.0",
     "simpleeval>=0.9.0",
+    "sqlmodel>=0.0.14",
+    "alembic>=1.13.0",
+    "asyncpg>=0.29.0",
+    "python-dotenv>=1.0.0",
+    "greenlet>=3.0.0",
 ]
 
 [project.optional-dependencies]
