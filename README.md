@@ -10,12 +10,22 @@ FLUX app is an application that determines the "Next Best Action" for training s
 flux-app/
 ├── backend/
 │   ├── src/
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   ├── deps.py         # Dependency injection (DB, engine, user ID)
+│   │   │   ├── main.py         # API router collection
+│   │   │   └── routes/
+│   │   │       ├── __init__.py
+│   │   │       ├── readiness.py  # Readiness check-in endpoints
+│   │   │       ├── exercises.py  # Exercise management endpoints
+│   │   │       └── workouts.py   # Workout recommendation endpoints
 │   │   ├── db/
 │   │   │   ├── __init__.py
 │   │   │   ├── models.py      # SQLModel database tables
 │   │   │   └── session.py     # Async database session management
 │   │   ├── models.py          # Pydantic models for config, input, output
-│   │   └── engine.py          # WorkoutEngine class with core logic
+│   │   ├── engine.py          # WorkoutEngine class with core logic
+│   │   └── main.py            # FastAPI application entry point
 │   ├── alembic/
 │   │   ├── versions/          # Database migration files
 │   │   ├── env.py             # Alembic configuration for async SQLModel
@@ -44,6 +54,15 @@ flux-app/
 - **Async Database Operations**: High-performance async database connections using asyncpg
 - **Database Migrations**: Alembic integration for schema versioning and migrations
 - **Relationships**: SQLModel relationships for easy data access (e.g., `WorkoutSession.sets`)
+
+### Phase 3: API Layer
+- **FastAPI Application**: RESTful API exposing WorkoutEngine logic and database operations
+- **Dependency Injection**: Clean separation of concerns with reusable dependencies
+- **Readiness Endpoints**: Record daily readiness check-ins with upsert support
+- **Exercise Management**: List and seed exercises from configuration
+- **Workout Recommendations**: Generate personalized workout plans based on readiness and history
+- **CORS Support**: Cross-origin resource sharing enabled for frontend integration
+- **User Identification**: Header-based user ID extraction (ready for authentication upgrade)
 
 ## Setup
 
@@ -85,6 +104,70 @@ flux-app/
    ```
 
 ## Usage
+
+### Running the API Server
+
+Start the FastAPI server:
+
+```bash
+cd backend
+uv run uvicorn src.main:app --reload
+```
+
+The API will be available at `http://localhost:8000`
+
+API documentation (Swagger UI): `http://localhost:8000/docs`
+Alternative docs (ReDoc): `http://localhost:8000/redoc`
+
+### API Endpoints
+
+#### Health Check
+```http
+GET /
+```
+Returns: `{"status": "ok", "version": "flux-api-v1"}`
+
+#### Readiness Check-in
+```http
+POST /api/v1/readiness/check-in
+Headers:
+  X-User-Id: <uuid>
+Body:
+  {
+    "knee_pain": 2,
+    "energy": 7
+  }
+```
+Returns: `{"state": "GREEN"}` (or "RED", "ORANGE")
+
+#### List Exercises
+```http
+GET /api/v1/exercises/
+```
+Returns: List of all exercises in the database
+
+#### Seed Exercises
+```http
+POST /api/v1/exercises/seed
+```
+Populates the database with exercises from `program_config.yaml`
+
+#### Get Workout Recommendation
+```http
+POST /api/v1/workouts/recommend
+Headers:
+  X-User-Id: <uuid>
+Body:
+  {
+    "knee_pain": 2,
+    "energy": 7
+  }
+```
+Returns: SessionPlan with recommended workout details
+
+### Programmatic Usage (Direct Engine)
+
+You can also use the engine directly in Python:
 
 ```python
 from src.engine import WorkoutEngine
@@ -169,6 +252,8 @@ ruff format .
 
 ## Technology Stack
 
+- **API Framework**: FastAPI - Modern, fast web framework for building APIs
+- **ASGI Server**: Uvicorn - Lightning-fast ASGI server
 - **ORM**: SQLModel (async) - Combines Pydantic and SQLAlchemy
 - **Database**: PostgreSQL (via asyncpg driver)
 - **Migrations**: Alembic with async support
