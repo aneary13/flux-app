@@ -39,6 +39,22 @@ flux-app/
 │   ├── .env.example           # Environment variables template
 │   ├── pyproject.toml         # uv project config with dependencies
 │   └── ruff.toml              # Ruff linting/formatting config
+├── frontend/
+│   ├── app/                    # Expo Router file-based routes
+│   │   ├── _layout.tsx        # Root layout with providers
+│   │   ├── index.tsx          # Home screen
+│   │   ├── check-in.tsx       # Daily readiness check-in screen
+│   │   └── workout-plan.tsx   # Workout recommendation display
+│   ├── components/
+│   │   └── NumberSelector.tsx # Reusable number selector component
+│   ├── src/
+│   │   └── api/
+│   │       └── client.tsx     # Axios instance & QueryClient setup
+│   ├── global.css             # Tailwind CSS directives
+│   ├── tailwind.config.js     # Tailwind configuration
+│   ├── metro.config.js        # Metro bundler config with NativeWind
+│   ├── babel.config.js        # Babel config with NativeWind plugin
+│   └── package.json           # npm dependencies
 └── README.md
 ```
 
@@ -64,13 +80,30 @@ flux-app/
 - **CORS Support**: Cross-origin resource sharing enabled for frontend integration
 - **User Identification**: Header-based user ID extraction (ready for authentication upgrade)
 
+### Phase 4: Frontend Application
+- **React Native Expo App**: Cross-platform mobile application with TypeScript
+- **Expo Router**: File-based routing for navigation
+- **NativeWind v4**: Tailwind CSS styling for React Native
+- **TanStack Query**: Data fetching, caching, and state management
+- **User ID Persistence**: Automatic UUID generation and storage per device
+- **Daily Readiness Check-In**: Interactive UI for pain and energy level input
+- **Workout Plan Display**: Beautiful card-based UI showing recommended workouts
+- **Error Handling**: Graceful handling of 404 (Rest Day) and other API errors
+- **Platform Detection**: Automatic base URL configuration for Android/iOS simulators
+
 ## Setup
 
 ### Prerequisites
 
+**Backend:**
 - Python 3.13+
 - `uv` package manager (by Astral)
 - PostgreSQL database (e.g., Supabase)
+
+**Frontend:**
+- Node.js 18+ and npm/yarn
+- Expo CLI (install globally: `npm install -g expo-cli` or use `npx`)
+- iOS Simulator (for macOS) or Android Emulator
 
 ### Installation
 
@@ -103,9 +136,42 @@ flux-app/
    .venv\Scripts\activate  # On Windows
    ```
 
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. Start the Expo development server:
+   ```bash
+   npm start
+   # or
+   yarn start
+   ```
+
+4. Run on iOS simulator:
+   ```bash
+   npm run ios
+   ```
+
+5. Run on Android emulator:
+   ```bash
+   npm run android
+   ```
+
 ## Usage
 
-### Running the API Server
+### Running the Application
+
+**Start the Backend API Server:**
 
 Start the FastAPI server:
 
@@ -118,6 +184,21 @@ The API will be available at `http://localhost:8000`
 
 API documentation (Swagger UI): `http://localhost:8000/docs`
 Alternative docs (ReDoc): `http://localhost:8000/redoc`
+
+**Start the Frontend Mobile App:**
+
+In a separate terminal, navigate to the frontend directory and start Expo:
+
+```bash
+cd frontend
+npm start
+```
+
+Then press `i` for iOS simulator or `a` for Android emulator, or scan the QR code with the Expo Go app on your physical device.
+
+**Note:** The frontend automatically detects the platform and uses:
+- `http://localhost:8000` for iOS Simulator
+- `http://10.0.2.2:8000` for Android Emulator
 
 ### API Endpoints
 
@@ -252,9 +333,19 @@ ruff format .
 
 ## Technology Stack
 
+**Backend:**
 - **API Framework**: FastAPI - Modern, fast web framework for building APIs
 - **ASGI Server**: Uvicorn - Lightning-fast ASGI server
 - **ORM**: SQLModel (async) - Combines Pydantic and SQLAlchemy
 - **Database**: PostgreSQL (via asyncpg driver)
 - **Migrations**: Alembic with async support
 - **Configuration**: python-dotenv for environment variables
+
+**Frontend:**
+- **Framework**: React Native with Expo (Managed workflow)
+- **Language**: TypeScript
+- **Routing**: Expo Router (File-based routing)
+- **Styling**: NativeWind v4 (Tailwind CSS for React Native)
+- **Data Fetching**: TanStack Query (React Query) + Axios
+- **State Management**: TanStack Query for server state
+- **Storage**: AsyncStorage for user ID persistence

@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-01-20
+
+### Added
+- **Frontend Application (Phase 4)**:
+  - React Native Expo application with TypeScript and Expo Router
+  - NativeWind v4 integration for Tailwind CSS styling
+  - TanStack Query (React Query) for data fetching and caching
+  - Axios HTTP client with platform-aware base URL configuration
+  - User ID persistence using AsyncStorage and expo-crypto
+  - Automatic `X-User-Id` header injection via Axios interceptors
+  - Daily Readiness Check-In screen with interactive number selectors
+  - Workout Plan display screen with loading, success, and error states
+  - Reusable `NumberSelector` component with flex-wrap button layout
+  - Type-safe API client with TypeScript interfaces (`SessionPlan`, `ReadinessCheckInResponse`)
+  - Platform detection for Android emulator (`10.0.2.2`) vs iOS simulator (`localhost`)
+- Frontend project structure in `frontend/` directory
+- Comprehensive error handling for 404 (Rest Day) and other API errors
+- Modern UI with card-based layouts, rounded corners, and blue/green color scheme
+
+### Changed
+- Updated project structure to include `frontend/` directory
+- Added frontend dependencies: `expo`, `expo-router`, `nativewind`, `@tanstack/react-query`, `axios`, `expo-crypto`, `@react-native-async-storage/async-storage`
+
+---
+
 ## [0.3.0] - 2026-01-20
 
 ### Added
@@ -67,7 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pull request template
 - Changelog file
 
-[Unreleased]: https://github.com/aneary13/flux-app/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/aneary13/flux-app/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/aneary13/flux-app/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/aneary13/flux-app/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/aneary13/flux-app/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/aneary13/flux-app/releases/tag/v0.1.0
