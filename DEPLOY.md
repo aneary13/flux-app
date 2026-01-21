@@ -8,75 +8,69 @@ This guide explains how to deploy the FLUX backend to Render.com as a Python Web
 - A Supabase database (or other PostgreSQL database) with connection string
 - Git repository access
 
-## Render.com Configuration
+## 1. Prepare Dependencies (Critical Step)
+
+Render requires a standard `requirements.txt` file. You must generate this file using `uv` with specific flags to ensure it works in a cloud environment.
+
+Run this command in your `backend` directory:
+
+```bash
+cd backend
+uv export --format requirements-txt --no-dev --no-emit-project --output-file requirements.txt
+```
+
+**Why these flags?**
+- `--no-dev`: Excludes testing libraries (pytest) to keep the production build light.
+- `--no-emit-project`: **Crucial.** Prevents `uv` from adding a reference to your local file system (e.g., `file:///Users/...`), which causes build failures on Render.
+
+## 2. Render.com Configuration
 
 ### Service Settings
 
-1. **Service Type**: Python Web Service
-2. **Root Directory**: `backend`
-3. **Python Version**: 3.13
-4. **Build Command**: (Render will auto-detect from `requirements.txt`)
-5. **Start Command**: `./start.sh` or `bash start.sh`
+Create a new **Web Service** on Render and connect your GitHub repo. Use these settings:
+
+1.  **Name**: `flux-app` (or similar)
+2.  **Root Directory**: `backend` (If you miss this, the build will fail)
+3.  **Runtime**: Python 3
+4.  **Build Command**: `pip install -r requirements.txt`
+5.  **Start Command**: `./start.sh`
 
 ### Environment Variables
 
-Set the following environment variable in Render's dashboard:
+Go to the **Environment** tab and add the following:
 
-- **`DATABASE_URL`**: Your Supabase PostgreSQL connection string
-  - Format: `postgresql+asyncpg://user:password@host:port/database`
-  - Example: `postgresql+asyncpg://postgres:password@db.xxxxx.supabase.co:5432/postgres`
+| Key | Value | Notes |
+| :--- | :--- | :--- |
+| `PYTHON_VERSION` | `3.13.7` | Or match your local version (e.g. `3.12.0`). Defaults to 3.7 if missing. |
+| `DATABASE_URL` | `postgresql+asyncpg://...` | **See Supabase Note below** |
 
-## Deployment Steps
+### ⚠️ Critical Note on Supabase Connections
 
-1. **Connect Repository**
-   - In Render dashboard, click "New" → "Web Service"
-   - Connect your Git repository
-   - Select the repository and branch
+Render (and many local networks) usually run on IPv4, while Supabase's direct connection is often IPv6. To avoid `[Errno 8] nodename nor servname provided` errors:
 
-2. **Configure Service**
-   - **Name**: Choose a name for your service (e.g., `flux-backend`)
-   - **Root Directory**: Set to `backend`
-   - **Environment**: Python 3
-   - **Build Command**: Leave empty (auto-detected)
-   - **Start Command**: `./start.sh`
+1.  Use the **Session Pooler** connection string (usually Port **6543**).
+2.  Ensure the protocol is set to `postgresql+asyncpg://`.
+3.  **URL Encode your password**: If your password contains special characters (like `@`), replace them with their hex code (e.g., `%40`).
 
-3. **Set Environment Variables**
-   - Go to the "Environment" tab
-   - Add `DATABASE_URL` with your database connection string
+## 3. What Happens on Deploy
 
-4. **Deploy**
-   - Click "Create Web Service"
-   - Render will build and deploy your application
-   - The service will be available at `https://your-service-name.onrender.com`
+1.  Render installs dependencies from the clean `requirements.txt`.
+2.  The `start.sh` script runs:
+    -   Executes `alembic upgrade head` to apply any pending database migrations.
+    -   Starts the FastAPI server using `uvicorn` on `0.0.0.0:$PORT`.
 
-## What Happens on Deploy
+## 4. Verification
 
-1. Render installs dependencies from `requirements.txt`
-2. The `start.sh` script runs:
-   - Executes `alembic upgrade head` to apply database migrations
-   - Starts the FastAPI server using uvicorn on `0.0.0.0:$PORT`
+After deployment, verify the service is running by visiting the URL (e.g., `https://flux-api.onrender.com`).
 
-## Health Check
-
-After deployment, you can verify the service is running by visiting:
-
-```
-https://your-service-name.onrender.com/
-```
-
-This should return:
+You should see:
 ```json
 {"status": "ok", "version": "flux-api-v1"}
 ```
 
-## Troubleshooting
+## 5. Known Limitations (Free Tier)
 
-- **Migrations fail**: Ensure `DATABASE_URL` is correctly set and the database is accessible
-- **Service won't start**: Check Render logs for errors in the start script
-- **Port binding issues**: The script automatically uses Render's `$PORT` environment variable
-
-## Notes
-
-- The `requirements.txt` file is generated using `uv export --no-dev` to exclude development dependencies
-- Database migrations run automatically on each deployment
-- The service binds to `0.0.0.0` to accept connections from Render's load balancer
+**The "Cold Start" Delay**
+Render's free tier spins down services after 15 minutes of inactivity.
+-   **Symptom**: When you open the FLUX mobile app after a break, you might get a "Network Error" or the spinner hangs for ~45 seconds.
+-   **Solution**: This is normal. The first request wakes the server up. Simply reload the app or refresh the API URL in your browser, and it will work instantly.
