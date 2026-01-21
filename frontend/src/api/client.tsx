@@ -17,13 +17,14 @@ export interface ReadinessCheckInResponse {
   state: 'RED' | 'ORANGE' | 'GREEN';
 }
 
-// Determine base URL based on platform
-// Android emulator uses 10.0.2.2 to access localhost
-// iOS simulator uses localhost directly
+// Determine base URL based on environment
+// Production: Use EXPO_PUBLIC_API_URL if set
+// Development: Use platform-specific localhost addresses
 const baseURL =
-  Platform.OS === 'android'
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Platform.OS === 'android'
     ? 'http://10.0.2.2:8000'
-    : 'http://localhost:8000';
+    : 'http://localhost:8000');
 
 // User ID management
 const USER_ID_STORAGE_KEY = 'user_id';

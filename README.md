@@ -38,41 +38,87 @@ flux-app/
 │   │   └── program_config.yaml  # Configuration with archetypes, states, sessions
 │   ├── .env.example           # Environment variables template
 │   ├── pyproject.toml         # uv project config with dependencies
+│   ├── requirements.txt       # Production dependencies (generated)
+│   ├── start.sh              # Production start script (migrations + server)
 │   └── ruff.toml              # Ruff linting/formatting config
+├── frontend/
+│   ├── app/                    # Expo Router file-based routes
+│   │   ├── _layout.tsx        # Root layout with providers
+│   │   ├── index.tsx          # Home screen
+│   │   ├── check-in.tsx       # Daily readiness check-in screen
+│   │   └── workout-plan.tsx   # Workout recommendation display
+│   ├── components/
+│   │   └── NumberSelector.tsx # Reusable number selector component
+│   ├── src/
+│   │   └── api/
+│   │       └── client.tsx     # Axios instance & QueryClient setup
+│   ├── .env                   # Environment variables (EXPO_PUBLIC_API_URL)
+│   ├── global.css             # Tailwind CSS directives
+│   ├── tailwind.config.js     # Tailwind configuration
+│   ├── metro.config.js        # Metro bundler config with NativeWind
+│   ├── babel.config.js        # Babel config with NativeWind plugin
+│   └── package.json           # npm dependencies
+├── DEPLOY.md                  # Deployment guide for Render.com
 └── README.md
 ```
 
 ## Features
 
 ### Phase 1: Logic Core
-- **State Determination**: Evaluates user readiness (pain 0-10, energy 0-10) to determine state (RED/ORANGE/GREEN)
-- **Priority Calculation**: Calculates priority scores for each training archetype based on how long ago it was last performed vs. ideal frequency
-- **Session Generation**: Recommends the optimal training session based on state and priority
+- **State Determination**: Evaluates user readiness (pain 0-10, energy 0-10) to determine state (RED/ORANGE/GREEN).
+- **Priority Calculation**: Calculates priority scores for each training archetype based on how long ago it was last performed vs. ideal frequency.
+- **Session Generation**: Recommends the optimal training session based on state and priority.
 
 ### Phase 2: Data Layer
-- **Database Models**: SQLModel tables for exercises, daily readiness logs, workout sessions, and workout sets
-- **Async Database Operations**: High-performance async database connections using asyncpg
-- **Database Migrations**: Alembic integration for schema versioning and migrations
-- **Relationships**: SQLModel relationships for easy data access (e.g., `WorkoutSession.sets`)
+- **Database Models**: SQLModel tables for exercises, daily readiness logs, workout sessions, and workout sets.
+- **Async Database Operations**: High-performance async database connections using asyncpg.
+- **Database Migrations**: Alembic integration for schema versioning and migrations.
+- **Relationships**: SQLModel relationships for easy data access (e.g., `WorkoutSession.sets`).
 
 ### Phase 3: API Layer
-- **FastAPI Application**: RESTful API exposing WorkoutEngine logic and database operations
-- **Dependency Injection**: Clean separation of concerns with reusable dependencies
-- **Readiness Endpoints**: Record daily readiness check-ins with upsert support
-- **Exercise Management**: List and seed exercises from configuration
-- **Workout Recommendations**: Generate personalized workout plans based on readiness and history
-- **CORS Support**: Cross-origin resource sharing enabled for frontend integration
-- **User Identification**: Header-based user ID extraction (ready for authentication upgrade)
+- **FastAPI Application**: RESTful API exposing WorkoutEngine logic and database operations.
+- **Dependency Injection**: Clean separation of concerns with reusable dependencies.
+- **Readiness Endpoints**: Record daily readiness check-ins with upsert support.
+- **Exercise Management**: List and seed exercises from configuration.
+- **Workout Recommendations**: Generate personalized workout plans based on readiness and history.
+- **CORS Support**: Cross-origin resource sharing enabled for frontend integration.
+- **User Identification**: Header-based user ID extraction (ready for authentication upgrade).
+
+### Phase 4: Frontend Application
+- **React Native Expo App**: Cross-platform mobile application with TypeScript.
+- **Expo Router**: File-based routing for navigation.
+- **NativeWind v4**: Tailwind CSS styling for React Native.
+- **TanStack Query**: Data fetching, caching, and state management.
+- **User ID Persistence**: Automatic UUID generation and storage per device.
+- **Daily Readiness Check-In**: Interactive UI for pain and energy level input.
+- **Workout Plan Display**: Beautiful card-based UI showing recommended workouts.
+- **Error Handling**: Graceful handling of 404 (Rest Day) and other API errors.
+- **Platform Detection**: Automatic base URL configuration for Android/iOS simulators.
+
+### Phase 5: Deployment
+- **Backend Deployment**: Production-ready deployment configuration for Render.com.
+- **Requirements File**: Standardized `requirements.txt` generated from `pyproject.toml` (excluding dev dependencies and local project references).
+- **Production Start Script**: Automated migration and server startup script (`start.sh`).
+- **Environment Variables**: Frontend support for production API URL via `EXPO_PUBLIC_API_URL`.
+- **Deployment Documentation**: Comprehensive deployment guide (`DEPLOY.md`).
+- **Automatic Migrations**: Database migrations run automatically on each deployment.
 
 ## Setup
 
 ### Prerequisites
 
+**Backend:**
 - Python 3.13+
 - `uv` package manager (by Astral)
 - PostgreSQL database (e.g., Supabase)
 
-### Installation
+**Frontend:**
+- Node.js 18+ and npm/yarn
+- Expo CLI (install globally: `npm install -g expo-cli` or use `npx`)
+- iOS Simulator (for macOS) or Android Emulator
+- Expo Go app (for physical devices)
+
+### Backend Installation
 
 1. Navigate to the backend directory:
    ```bash
@@ -87,37 +133,69 @@ flux-app/
 3. Create a `.env` file with your database connection string:
    ```bash
    cp .env.example .env
-   # Edit .env and add your DATABASE_URL
-   # Format: DATABASE_URL=postgresql+asyncpg://user:password@host:port/database
    ```
+   **Crucial Supabase Setup:**
+   - Use the **Session Pooler** connection string (usually Port `6543`), NOT the Direct connection (`5432`).
+   - Ensure the protocol is `postgresql+asyncpg://`.
+   - If your password has special characters (e.g., `@`), it must be URL encoded (e.g., `%40`).
 
 4. Run database migrations:
    ```bash
    uv run alembic upgrade head
    ```
 
-5. Activate the virtual environment (optional):
+### Frontend Installation
+
+1. Navigate to the frontend directory:
    ```bash
-   source .venv/bin/activate  # On Unix/macOS
-   # or
-   .venv\Scripts\activate  # On Windows
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+   *Note: If you encounter missing asset errors later, run `npx expo install expo-asset`.*
+
+3. (Optional) Configure production API URL:
+   ```bash
+   # Edit frontend/.env and set EXPO_PUBLIC_API_URL to your Render.com backend URL
+   # Example: EXPO_PUBLIC_API_URL=https://your-service.onrender.com
    ```
 
 ## Usage
 
-### Running the API Server
+### Running the Application
 
-Start the FastAPI server:
+**1. Start the Backend API Server:**
 
 ```bash
 cd backend
 uv run uvicorn src.main:app --reload
 ```
-
 The API will be available at `http://localhost:8000`
+- Docs: `http://localhost:8000/docs`
 
-API documentation (Swagger UI): `http://localhost:8000/docs`
-Alternative docs (ReDoc): `http://localhost:8000/redoc`
+**2. Start the Frontend Mobile App:**
+
+**For Physical Devices (Recommended):**
+To run on your actual phone (iPhone/Android), you must use the tunnel command to bypass local network restrictions.
+```bash
+cd frontend
+npx expo start --tunnel -c
+```
+Then scan the QR code with the **Expo Go** app.
+
+**For Simulators (Local Development):**
+```bash
+cd frontend
+npm start
+```
+Press `i` for iOS simulator or `a` for Android emulator.
+
+**Note on Networking:** The frontend automatically detects the environment:
+- **Production**: Uses `EXPO_PUBLIC_API_URL` from `.env` file if set.
+- **Development**: Falls back to platform-specific localhost (`http://localhost:8000` for iOS, `http://10.0.2.2:8000` for Android).
 
 ### API Endpoints
 
@@ -140,18 +218,6 @@ Body:
 ```
 Returns: `{"state": "GREEN"}` (or "RED", "ORANGE")
 
-#### List Exercises
-```http
-GET /api/v1/exercises/
-```
-Returns: List of all exercises in the database
-
-#### Seed Exercises
-```http
-POST /api/v1/exercises/seed
-```
-Populates the database with exercises from `program_config.yaml`
-
 #### Get Workout Recommendation
 ```http
 POST /api/v1/workouts/recommend
@@ -165,96 +231,43 @@ Body:
 ```
 Returns: SessionPlan with recommended workout details
 
-### Programmatic Usage (Direct Engine)
+## Troubleshooting
 
-You can also use the engine directly in Python:
+### Backend / Database
+- **`[Errno 8] nodename nor servname provided`**: This usually means your `DATABASE_URL` is incorrect or you are trying to connect to an IPv6 Supabase address on an IPv4 network. Switch to the Supabase **Session Pooler** URL (Port 6543).
+- **Render Build Fails**: Ensure `requirements.txt` does not contain a reference to the local `backend` file. Use the `--no-emit-project` flag when exporting dependencies.
+- **Render Cold Starts**: If the app gives a "Network Error" after 15 minutes of inactivity, the Render free tier server is likely sleeping. Open the API URL in a browser to wake it up, then reload the app.
 
-```python
-from src.engine import WorkoutEngine
-from src.models import Readiness, TrainingHistory, HistoryEntry
-from datetime import date, timedelta
+### Frontend
+- **"Network Error" on Physical Device**: Ensure you are running `npx expo start --tunnel`. Localhost (`127.0.0.1`) cannot be accessed by your phone over WiFi without tunneling.
+- **Styles missing**: If NativeWind styles aren't applying, run `npx expo start -c` to clear the Metro cache.
 
-# Initialize engine with config
-engine = WorkoutEngine("config/program_config.yaml")
+## Deployment
 
-# Create readiness input
-readiness = Readiness(knee_pain=2, energy=7)
-
-# Create training history
-today = date.today()
-history = TrainingHistory(
-    entries=[
-        HistoryEntry(archetype="Strength_Type_A", date=today - timedelta(days=5)),
-    ]
-)
-
-# Generate session plan
-plan = engine.generate_session(readiness, history)
-print(f"Recommended: {plan.session_name}")
-print(f"Exercises: {plan.exercises}")
-print(f"Priority Score: {plan.priority_score}")
-```
-
-## Testing
-
-Run tests with pytest:
-
-```bash
-cd backend
-pytest
-```
-
-## Configuration
-
-Edit `backend/config/program_config.yaml` to customize:
-
-- **Archetypes**: Training types with ideal frequency (days between sessions)
-- **States**: Readiness states (RED/ORANGE/GREEN) with condition expressions
-- **Sessions**: Training sessions with allowed states and exercises
+See [DEPLOY.md](DEPLOY.md) for detailed instructions on deploying the backend to Render.com.
 
 ## Database Migrations
 
 ### Creating a new migration
-
-After modifying database models in `src/db/models.py`:
-
 ```bash
 cd backend
 uv run alembic revision --autogenerate -m "Description of changes"
 ```
 
 ### Applying migrations
-
 ```bash
 uv run alembic upgrade head
-```
-
-### Rolling back migrations
-
-```bash
-uv run alembic downgrade -1  # Roll back one migration
 ```
 
 ## Code Quality
 
 This project uses:
 - **Ruff** for linting and formatting (Google style guide + PEP 8)
-- **Pydantic** for strict schema validation (Phase 1: business logic)
-- **SQLModel** for database models (Phase 2: persistence)
+- **Pydantic** for strict schema validation
+- **SQLModel** for database models
 - **pytest** for testing
-
-Run linting:
-```bash
-cd backend
-ruff check .
-ruff format .
-```
 
 ## Technology Stack
 
-- **API Framework**: FastAPI - Modern, fast web framework for building APIs
-- **ASGI Server**: Uvicorn - Lightning-fast ASGI server
-- **ORM**: SQLModel (async) - Combines Pydantic and SQLAlchemy
-- **Database**: PostgreSQL (via asyncpg driver)
-- **Migrations**: Alembic with async support
-- **Configuration**: python-dotenv for environment variables
+**Backend:** FastAPI, Uvicorn, SQLModel (Async), PostgreSQL, Alembic
+**Frontend:** React Native (Expo), TypeScript, NativeWind v4, TanStack Query, AsyncStorage
