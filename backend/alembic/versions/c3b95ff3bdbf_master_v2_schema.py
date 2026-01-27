@@ -1,8 +1,8 @@
-"""Initial schema
+"""Master V2 Schema
 
-Revision ID: 99b9af15dd9f
+Revision ID: c3b95ff3bdbf
 Revises: 
-Create Date: 2026-01-20 10:24:54.031204
+Create Date: 2026-01-27 20:44:33.312239
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = '99b9af15dd9f'
+revision: str = 'c3b95ff3bdbf'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -45,7 +45,8 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('date', sa.DateTime(), nullable=False),
-    sa.Column('archetype_name', sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
+    sa.Column('session_type', sa.String(length=50), nullable=True),
+    sa.Column('impacted_patterns', sa.JSON(), nullable=True),
     sa.Column('duration_minutes', sa.Integer(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
