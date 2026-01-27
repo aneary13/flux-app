@@ -90,6 +90,11 @@ library:
       GREEN: "DB Side Bend"
       ORANGE: "DB Side Bend"
       RED: "DB Side Bend"
+  PATELLAR_ISO:
+    PREP:
+      GREEN: "SL Wall Sit"
+      ORANGE: "SL Wall Sit"
+      RED: "SL Wall Sit"
   RFD:
     HIGH:
       - "Hurdle Jump"

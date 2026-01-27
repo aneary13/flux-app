@@ -208,14 +208,18 @@ class WorkoutEngine:
         # WARM_UP - could be pattern-specific warm-up (placeholder for now)
         # For now, we'll skip explicit warm-up and go to Patellar ISO
         
-        # PATELLAR_ISO - always included
-        blocks.append(
-            ExerciseBlock(
-                block_type="PREP",
-                exercise_name="Patellar Isometric",
-                pattern=None,
-            )
+        # PATELLAR_ISO - always included, read from config
+        patellar_exercise = self._get_exercise_from_library(
+            "PATELLAR_ISO", "PREP", state
         )
+        if patellar_exercise:
+            blocks.append(
+                ExerciseBlock(
+                    block_type="PREP",
+                    exercise_name=patellar_exercise,
+                    pattern="PATELLAR_ISO",
+                )
+            )
         
         # CORE - select core pattern with highest debt
         core_patterns = self.config.patterns.core

@@ -106,6 +106,11 @@ library:
       GREEN: "Side Plank"
       ORANGE: "Band Anti-Lateral"
       RED: "Dead Bug"
+  PATELLAR_ISO:
+    PREP:
+      GREEN: "Patellar Isometric"
+      ORANGE: "Patellar Isometric"
+      RED: "Patellar Isometric"
   RFD:
     HIGH:
       - "Depth Jumps"
@@ -432,6 +437,11 @@ library:
       GREEN: "Side Plank"
       ORANGE: "Band Anti-Lateral"
       RED: "Dead Bug"
+  PATELLAR_ISO:
+    PREP:
+      GREEN: "Patellar Isometric"
+      ORANGE: "Patellar Isometric"
+      RED: "Patellar Isometric"
   RFD:
     HIGH:
       - "Depth Jumps"
