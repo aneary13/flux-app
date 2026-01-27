@@ -4,11 +4,12 @@ import pytest
 from pydantic import ValidationError
 
 from src.models import (
-    ArchetypeConfig,
+    ExerciseBlock,
     HistoryEntry,
+    PatternConfig,
+    PowerSelectionConfig,
     ProgramConfig,
     Readiness,
-    SessionConfig,
     SessionPlan,
     StateConfig,
     TrainingHistory,
@@ -60,8 +61,10 @@ class TestTrainingHistory:
         """Test history with entries."""
         from datetime import date
 
-        entry1 = HistoryEntry(archetype="Strength_Type_A", date=date(2024, 1, 1))
-        entry2 = HistoryEntry(archetype="Cardio_Type_B", date=date(2024, 1, 3))
+        entry1 = HistoryEntry(
+            impacted_patterns=["SQUAT", "PULL_HORIZ"], date=date(2024, 1, 1)
+        )
+        entry2 = HistoryEntry(impacted_patterns=["HINGE"], date=date(2024, 1, 3))
         history = TrainingHistory(entries=[entry1, entry2])
         assert len(history.entries) == 2
 
@@ -69,19 +72,25 @@ class TestTrainingHistory:
 class TestConfigModels:
     """Tests for configuration models."""
 
-    def test_archetype_config(self) -> None:
-        """Test ArchetypeConfig validation."""
-        archetype = ArchetypeConfig(name="Strength_Type_A", ideal_frequency_days=3)
-        assert archetype.name == "Strength_Type_A"
-        assert archetype.ideal_frequency_days == 3
+    def test_pattern_config(self) -> None:
+        """Test PatternConfig validation."""
+        patterns = PatternConfig(
+            main=["SQUAT", "HINGE"],
+            accessory=["LUNGE"],
+            core=["CORE"],
+        )
+        assert len(patterns.main) == 2
+        assert len(patterns.accessory) == 1
+        assert len(patterns.core) == 1
 
-    def test_archetype_invalid_frequency(self) -> None:
-        """Test invalid frequency (must be > 0)."""
-        with pytest.raises(ValidationError):
-            ArchetypeConfig(name="Test", ideal_frequency_days=0)
-
-        with pytest.raises(ValidationError):
-            ArchetypeConfig(name="Test", ideal_frequency_days=-1)
+    def test_power_selection_config(self) -> None:
+        """Test PowerSelectionConfig validation."""
+        power_selection = PowerSelectionConfig(
+            GREEN="HIGH", ORANGE="LOW", RED="UPPER"
+        )
+        assert power_selection.GREEN == "HIGH"
+        assert power_selection.ORANGE == "LOW"
+        assert power_selection.RED == "UPPER"
 
     def test_state_config(self) -> None:
         """Test StateConfig validation."""
@@ -89,50 +98,84 @@ class TestConfigModels:
         assert state.name == "RED"
         assert state.condition == "knee_pain >= 6"
 
-    def test_session_config(self) -> None:
-        """Test SessionConfig validation."""
-        session = SessionConfig(
-            archetype="Strength_Type_A",
-            name="Upper Body",
-            allowed_states=["GREEN", "ORANGE"],
-            exercises=["Bench Press", "Rows"],
-        )
-        assert session.archetype == "Strength_Type_A"
-        assert session.name == "Upper Body"
-        assert len(session.allowed_states) == 2
-        assert len(session.exercises) == 2
-
     def test_program_config(self) -> None:
         """Test ProgramConfig with all components."""
-        archetype = ArchetypeConfig(name="Strength_Type_A", ideal_frequency_days=3)
-        state = StateConfig(name="RED", condition="knee_pain >= 6")
-        session = SessionConfig(
-            archetype="Strength_Type_A",
-            name="Upper Body",
-            allowed_states=["GREEN"],
-            exercises=["Bench Press"],
+        from src.models import SessionStructureConfig
+
+        patterns = PatternConfig(
+            main=["SQUAT", "HINGE"],
+            accessory=["LUNGE"],
+            core=["CORE"],
         )
+        power_selection = PowerSelectionConfig(
+            GREEN="HIGH", ORANGE="LOW", RED="UPPER"
+        )
+        session_structure = SessionStructureConfig(
+            PREP=["WARM_UP", "PATELLAR_ISO", "CORE"],
+            POWER=["RFD"],
+            STRENGTH=["MAIN_PATTERN"],
+            ACCESSORIES=["RELATED_ACCESSORIES"],
+        )
+        state = StateConfig(name="RED", condition="knee_pain >= 6")
 
         config = ProgramConfig(
-            archetypes=[archetype], states=[state], sessions=[session]
+            patterns=patterns,
+            relationships={"SQUAT": ["PULL:ACCESSORY_HORIZONTAL"]},
+            library={
+                "SQUAT": {
+                    "MAIN": {"GREEN": "Back Squat", "ORANGE": "Tempo Goblet Squat", "RED": "SKIP"}
+                }
+            },
+            power_selection=power_selection,
+            session_structure=session_structure,
+            states=[state],
         )
-        assert len(config.archetypes) == 1
         assert len(config.states) == 1
-        assert len(config.sessions) == 1
+        assert config.patterns.main == ["SQUAT", "HINGE"]
+        assert config.power_selection.GREEN == "HIGH"
+        assert config.session_structure.PREP == ["WARM_UP", "PATELLAR_ISO", "CORE"]
 
 
 class TestSessionPlan:
     """Tests for SessionPlan output model."""
 
     def test_session_plan(self) -> None:
-        """Test SessionPlan creation."""
-        plan = SessionPlan(
-            archetype="Strength_Type_A",
-            session_name="Upper Body",
-            exercises=["Bench Press", "Rows"],
-            priority_score=1.67,
-        )
-        assert plan.archetype == "Strength_Type_A"
-        assert plan.session_name == "Upper Body"
-        assert len(plan.exercises) == 2
-        assert plan.priority_score == 1.67
+        """Test SessionPlan creation with blocks."""
+        blocks = [
+            ExerciseBlock(
+                block_type="PREP", exercise_name="Patellar Isometric", pattern=None
+            ),
+            ExerciseBlock(
+                block_type="POWER", exercise_name="Depth Jumps", pattern=None
+            ),
+            ExerciseBlock(
+                block_type="MAIN", exercise_name="Back Squat", pattern="SQUAT"
+            ),
+            ExerciseBlock(
+                block_type="ACCESSORY_1",
+                exercise_name="Cable Row",
+                pattern="PULL_HORIZ",
+            ),
+        ]
+        plan = SessionPlan(session_type="GYM", blocks=blocks)
+
+        assert plan.session_type == "GYM"
+        assert plan.archetype == "GYM"  # Computed field
+        assert plan.session_name == "GYM: Back Squat"  # Computed field
+        assert len(plan.exercises) == 4  # Computed field
+        assert "Back Squat" in plan.exercises
+        assert plan.priority_score == 0.0  # Default value
+
+    def test_session_plan_computed_fields(self) -> None:
+        """Test that computed fields work correctly."""
+        blocks = [
+            ExerciseBlock(
+                block_type="MAIN", exercise_name="Bench Press", pattern="PUSH"
+            )
+        ]
+        plan = SessionPlan(session_type="GYM", blocks=blocks)
+
+        # Verify computed fields are accessible
+        assert plan.exercises == ["Bench Press"]
+        assert plan.session_name == "GYM: Bench Press"
+        assert plan.archetype == "GYM"

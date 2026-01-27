@@ -1,8 +1,122 @@
-archetypes:
-  - name: "Strength_Type_A"
-    ideal_frequency_days: 3
-  - name: "Cardio_Type_B"
-    ideal_frequency_days: 2
+patterns:
+  main:
+    - SQUAT
+    - HINGE
+    - PUSH
+    - PULL
+  accessory:
+    - LUNGE
+  core:
+    - CORE
+
+relationships:
+  SQUAT:
+    - PULL:ACCESSORY_HORIZONTAL
+    - HINGE:ACCESSORY_HIP
+  PUSH:
+    - SQUAT:ACCESSORY
+    - PULL:ACCESSORY_VERTICAL
+  HINGE:
+    - PUSH:ACCESSORY_HORIZONTAL
+    - LUNGE:ACCESSORY
+  PULL:
+    - HINGE:ACCESSORY_KNEE
+    - PUSH:ACCESSORY_VERTICAL
+
+library:
+  SQUAT:
+    MAIN:
+      GREEN: "Back Squat"
+      ORANGE: "Box Squat (Vertical Shin)"
+      RED: "SKIP"
+    ACCESSORY:
+      GREEN: "SL Knee Extension"
+      ORANGE: "SL Knee Extension Isometric"
+      RED: "SL Wall Sit"
+  HINGE:
+    MAIN:
+      GREEN: "BB RDL"
+      ORANGE: "BB RDL"
+      RED: "BB RDL"
+    ACCESSORY_HIP:
+      GREEN: "DB SL RDL"
+      ORANGE: "DB SL RDL"
+      RED: "DB SL RDL"
+    ACCESSORY_KNEE:
+      GREEN: "SL Leg Curl"
+      ORANGE: "SL Leg Curl"
+      RED: "SL Leg Curl"
+  PUSH:
+    MAIN:
+      GREEN: "BB Bench Press"
+      ORANGE: "BB Bench Press"
+      RED: "BB Bench Press"
+    ACCESSORY_VERTICAL:
+      GREEN: "Half-kneeling DB OH Press"
+      ORANGE: "Half-kneeling DB OH Press"
+      RED: "Half-kneeling DB OH Press"
+    ACCESSORY_HORIZONTAL:
+      GREEN: "Incline DB Press"
+      ORANGE: "Incline DB Press"
+      RED: "Incline DB Press"
+  PULL:
+    MAIN:
+      GREEN: "Chin Up"
+      ORANGE: "Chin Up"
+      RED: "Chin Up"
+    ACCESSORY_VERTICAL:
+      GREEN: "Lat Pulldown"
+      ORANGE: "Lat Pulldown"
+      RED: "Lat Pulldown"
+    ACCESSORY_HORIZONTAL:
+      GREEN: "Chest-supported DB Row"
+      ORANGE: "Chest-supported DB Row"
+      RED: "Chest-supported DB Row"
+  LUNGE:
+    ACCESSORY:
+      GREEN: "DB Bulgarian Split Squat"
+      ORANGE: "Lunge Isometric Hold"
+      RED: "Lunge Isometric Hold"
+  CORE:
+    TRANSVERSE:
+      GREEN: "Half-kneeling Cable Rotation"
+      ORANGE: "Half-kneeling Cable Rotation"
+      RED: "Half-kneeling Cable Rotation"
+    SAGITTAL:
+      GREEN: "Hanging Knee Tuck"
+      ORANGE: "Hanging Knee Tuck"
+      RED: "Hanging Knee Tuck"
+    FRONTAL:
+      GREEN: "DB Side Bend"
+      ORANGE: "DB Side Bend"
+      RED: "DB Side Bend"
+  RFD:
+    HIGH:
+      - "Hurdle Jump"
+      - "Hang Power Clean"
+    LOW:
+      - "Box Jump"
+      - "Snatch Grip High Pull"
+    UPPER:
+      - "MB Chest Pass"
+      - "MB Rotational Throw"
+
+power_selection:
+  GREEN: "HIGH"
+  ORANGE: "LOW"
+  RED: "UPPER"
+
+session_structure:
+  PREP:
+    - WARM_UP
+    - PATELLAR_ISO
+    - CORE
+  POWER:
+    - RFD
+  STRENGTH:
+    - MAIN_PATTERN  # Resolved dynamically based on pattern debt
+  ACCESSORIES:
+    - RELATED_ACCESSORIES  # Resolved dynamically from relationships
 
 states:
   - name: "RED"
@@ -10,18 +124,4 @@ states:
   - name: "ORANGE"
     condition: "(knee_pain >= 3) OR (energy <= 3)"
   - name: "GREEN"
-    condition: "default"  # Everything else
-
-sessions:
-  - archetype: "Strength_Type_A"
-    name: "Upper Body Strength"
-    allowed_states: ["GREEN", "ORANGE"]
-    exercises:
-      - "Bench Press"
-      - "Rows"
-  - archetype: "Cardio_Type_B"
-    name: "High Impact Cardio"
-    allowed_states: ["GREEN"]
-    exercises:
-      - "Running"
-      - "Jumping"
+    condition: "default"
