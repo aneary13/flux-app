@@ -29,9 +29,9 @@ async def seed_exercises(
 ) -> dict[str, int]:
     """Seed database with exercises from Phase 6 V2 Config.
 
-    Scrapes exercises from:
-    1. config.library (Patterns -> Variants -> Traffic Lights)
-    2. config.RFD (Power categories)
+    Robustly scrapes exercises from config.library, handling both:
+    1. Traffic Light Dicts (Squat/Hinge): {GREEN: "Name", RED: "Name"}
+    2. Power Lists (RFD): ["Jump 1", "Jump 2"]
 
     Args:
         db: Database session
@@ -40,8 +40,7 @@ async def seed_exercises(
     Returns:
         Dictionary with count of exercises created
     """
-    
-    # 1. Helper to handle Pydantic Models vs Dicts safely
+
     def to_dict(obj):
         if isinstance(obj, dict):
             return obj
@@ -51,35 +50,45 @@ async def seed_exercises(
             return obj.dict()
         return vars(obj)
 
-    # Dictionary to map Name -> Category (e.g., "Back Squat" -> "SQUAT")
-    # Using a dict automatically handles deduplication
+    # 1. Map Name -> Category to prevent duplicates
     exercises_map: dict[str, str] = {}
 
-    # 2. Extract from Library (Strength, Core, Iso)
-    # Access lowercase 'library' if 'Library' doesn't exist (Pydantic convention)
+    # 2. Extract from Library
+    # Access lowercase 'library' if 'Library' doesn't exist
     library_obj = getattr(engine.config, "library", getattr(engine.config, "Library", {}))
     library_data = to_dict(library_obj)
 
     for pattern, variants in library_data.items():
-        # pattern = SQUAT, HINGE, etc.
-        for variant_name, states in variants.items():
-            # states = {GREEN: "...", RED: "..."}
-            for state, exercise_name in states.items():
-                if exercise_name and exercise_name != "SKIP":
-                    # Only add if not present (First category wins)
-                    if exercise_name not in exercises_map:
-                        exercises_map[exercise_name] = pattern
+        # pattern = SQUAT, RFD, etc.
+        if not isinstance(variants, dict):
+            continue
 
-    # 3. Extract from RFD (Power)
-    # Check for 'RFD' (YAML exact match) or 'rfd' (Python lowercase)
+        for variant_name, entry_data in variants.items():
+            # CASE A: Standard Traffic Light Pattern (Dict)
+            # Structure: {GREEN: "Back Squat", RED: "SKIP"}
+            if isinstance(entry_data, dict):
+                for state, exercise_name in entry_data.items():
+                    if exercise_name and isinstance(exercise_name, str) and exercise_name != "SKIP":
+                        if exercise_name not in exercises_map:
+                            exercises_map[exercise_name] = pattern
+
+            # CASE B: RFD/Power Pattern (List)
+            # Structure: ["Hurdle Jump", "Box Jump"]
+            elif isinstance(entry_data, list):
+                for exercise_name in entry_data:
+                    if exercise_name and isinstance(exercise_name, str):
+                        if exercise_name not in exercises_map:
+                            exercises_map[exercise_name] = pattern
+
+    # 3. Check for standalone RFD section (Just in case it's not in library)
     rfd_obj = getattr(engine.config, "RFD", getattr(engine.config, "rfd", {}))
-    rfd_data = to_dict(rfd_obj)
-
-    for power_type, exercise_list in rfd_data.items():
-        # exercise_list = ["Hurdle Jump", "Hang Power Clean"]
-        for exercise_name in exercise_list:
-            if exercise_name not in exercises_map:
-                exercises_map[exercise_name] = "RFD"
+    if rfd_obj and rfd_obj != library_data.get("RFD"):
+        rfd_data = to_dict(rfd_obj)
+        for power_type, exercise_list in rfd_data.items():
+            if isinstance(exercise_list, list):
+                for exercise_name in exercise_list:
+                    if exercise_name not in exercises_map:
+                        exercises_map[exercise_name] = "RFD"
 
     # 4. Database Insertion
     created_count = 0
@@ -93,7 +102,7 @@ async def seed_exercises(
         if not existing:
             new_exercise = Exercise(
                 name=exercise_name,
-                category=category,  # Now uses 'SQUAT', 'RFD', 'CORE' etc.
+                category=category,
                 modality="Strength" if category != "RFD" else "Power",
             )
             db.add(new_exercise)
@@ -109,4 +118,3 @@ async def seed_exercises(
         ) from e
 
     return {"created": created_count, "total_unique": len(exercises_map)}
-    
