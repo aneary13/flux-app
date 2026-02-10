@@ -3,8 +3,7 @@
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Text, UniqueConstraint
-from sqlalchemy import Column
+from sqlalchemy import Column, DateTime, Text, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -40,7 +39,10 @@ class PatternInventory(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True)
     pattern: str = Field(max_length=100, index=True, description="e.g., SQUAT, RFD")
-    last_performed: datetime = Field(description="UTC timestamp when pattern was last performed")
+    last_performed: datetime = Field(
+        description="UTC timestamp when pattern was last performed",
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
 
 
 class WorkoutSession(SQLModel, table=True):
@@ -48,8 +50,14 @@ class WorkoutSession(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True)
-    started_at: datetime = Field(description="Session start (UTC)")
-    completed_at: datetime = Field(description="Session end (UTC)")
+    started_at: datetime = Field(
+        description="Session start (UTC)",
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    completed_at: datetime = Field(
+        description="Session end (UTC)",
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
     readiness_score: int = Field(ge=1, le=10, description="User state before session (1-10)")
     notes: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
 

@@ -16,6 +16,9 @@ async def log_completed_session(
 ) -> WorkoutSession:
     """Persist a completed workout session and update pattern inventory in one transaction.
 
+    Datetimes from the payload are timezone-aware and stored as TIMESTAMPTZ (UTC) in the DB;
+    they are passed through without stripping timezone info.
+
     1. Ingest: Save WorkoutSession and all WorkoutSets.
     2. Map: Resolve each unique exercise_name to a pattern (Exercise.category).
     3. Update: Upsert PatternInventory so last_performed is set for each pattern.
