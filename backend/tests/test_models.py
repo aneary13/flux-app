@@ -120,6 +120,7 @@ class TestConfigModels:
 
         config = ProgramConfig(
             patterns=patterns,
+            pattern_priority=["SQUAT", "PUSH", "HINGE", "PULL"],
             relationships={"SQUAT": ["PULL:ACCESSORY_HORIZONTAL"]},
             library={
                 "SQUAT": {
