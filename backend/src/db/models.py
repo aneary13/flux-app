@@ -1,10 +1,10 @@
 """SQLModel database models for FLUX application."""
 
 from datetime import date, datetime
-from typing import List
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from sqlalchemy import Column, JSON, String, UniqueConstraint
+from sqlalchemy import Text, UniqueConstraint
+from sqlalchemy import Column
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -13,11 +13,8 @@ class Exercise(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True, max_length=255)
-    category: str = Field(max_length=100, description="e.g., 'Upper', 'Lower', 'Full Body'")
+    category: str = Field(max_length=100, description="e.g., 'SQUAT', 'RFD' (pattern)")
     modality: str = Field(max_length=100, description="e.g., 'Barbell', 'Dumbbell', 'Bodyweight'")
-
-    # Relationships
-    workout_sets: list["WorkoutSet"] = Relationship(back_populates="exercise")
 
 
 class DailyReadiness(SQLModel, table=True):
@@ -35,24 +32,26 @@ class DailyReadiness(SQLModel, table=True):
     computed_state: str = Field(max_length=50, description="e.g., 'RED', 'ORANGE', 'GREEN'")
 
 
-class WorkoutSession(SQLModel, table=True):
-    """Log table for workout sessions."""
+class PatternInventory(SQLModel, table=True):
+    """Per-user, per-pattern last-performed timestamp for debt calculation."""
 
-    id: int | None = Field(default=None, primary_key=True)
+    __table_args__ = (UniqueConstraint("user_id", "pattern", name="uq_pattern_inventory_user_pattern"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True)
-    date: datetime
-    session_type: str | None = Field(
-        default=None,
-        max_length=50,
-        description="Session type: GYM, CONDITIONING, or REST",
-        sa_column=Column(String(50), nullable=True),
-    )
-    impacted_patterns: List[str] | None = Field(
-        default=None,
-        description="List of movement patterns impacted by this session",
-        sa_column=Column(JSON, nullable=True),
-    )
-    duration_minutes: int | None = Field(default=None, nullable=True)
+    pattern: str = Field(max_length=100, index=True, description="e.g., SQUAT, RFD")
+    last_performed: datetime = Field(description="UTC timestamp when pattern was last performed")
+
+
+class WorkoutSession(SQLModel, table=True):
+    """Log table for completed workout sessions."""
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True)
+    started_at: datetime = Field(description="Session start (UTC)")
+    completed_at: datetime = Field(description="Session end (UTC)")
+    readiness_score: int = Field(ge=1, le=10, description="User state before session (1-10)")
+    notes: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
 
     # Relationships
     sets: list["WorkoutSet"] = Relationship(back_populates="workout")
@@ -61,19 +60,13 @@ class WorkoutSession(SQLModel, table=True):
 class WorkoutSet(SQLModel, table=True):
     """Granular data table for individual workout sets."""
 
-    id: int | None = Field(default=None, primary_key=True)
-    workout_id: int = Field(foreign_key="workoutsession.id")
-    exercise_id: int = Field(foreign_key="exercise.id")
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    session_id: UUID = Field(foreign_key="workoutsession.id")
+    exercise_name: str = Field(max_length=255, description="Exercise name (decoupled from seed for custom exercises)")
+    weight_kg: float = Field(description="Weight in kg")
+    reps: int = Field(description="Repetitions")
+    rpe: float | None = Field(default=None, description="Rate of Perceived Exertion (optional)")
     set_order: int = Field(description="Order within workout")
-    weight_kg: float | None = Field(default=None, nullable=True)
-    reps: int | None = Field(default=None, nullable=True)
-    rpe: int | None = Field(
-        default=None, nullable=True, description="Rate of Perceived Exertion"
-    )
-    superset_group_id: int | None = Field(
-        default=None, nullable=True, description="For grouping exercises in supersets"
-    )
 
     # Relationships
     workout: "WorkoutSession" = Relationship(back_populates="sets")
-    exercise: "Exercise" = Relationship(back_populates="workout_sets")

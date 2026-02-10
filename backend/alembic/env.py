@@ -12,7 +12,13 @@ from sqlmodel import SQLModel
 load_dotenv()
 
 # Import all models to ensure they are registered with SQLModel.metadata
-from src.db.models import DailyReadiness, Exercise, WorkoutSession, WorkoutSet  # noqa: E402, F401
+from src.db.models import (  # noqa: E402, F401
+    DailyReadiness,
+    Exercise,
+    PatternInventory,
+    WorkoutSession,
+    WorkoutSet,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
