@@ -1,5 +1,8 @@
 """Workout recommendation and completion endpoints."""
 
+import sys
+import traceback
+
 from collections import defaultdict
 from datetime import date
 from uuid import UUID
@@ -77,10 +80,9 @@ async def create_workout(
         session = await log_completed_session(db, user_id, body)
     except Exception as e:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save workout",
-        ) from e
+        print(f"CRITICAL ERROR: {str(e)}", file=sys.stderr)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save workout: {str(e)}")
 
     sets_stmt = (
         select(WorkoutSet)
