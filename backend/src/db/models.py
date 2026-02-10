@@ -1,9 +1,10 @@
 """SQLModel database models for FLUX application."""
 
 from datetime import date, datetime
+from typing import List
 from uuid import UUID
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Column, JSON, String, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -40,7 +41,17 @@ class WorkoutSession(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: UUID = Field(index=True)
     date: datetime
-    archetype_name: str = Field(max_length=255, description="Matches Phase 1 archetype names")
+    session_type: str | None = Field(
+        default=None,
+        max_length=50,
+        description="Session type: GYM, CONDITIONING, or REST",
+        sa_column=Column(String(50), nullable=True),
+    )
+    impacted_patterns: List[str] | None = Field(
+        default=None,
+        description="List of movement patterns impacted by this session",
+        sa_column=Column(JSON, nullable=True),
+    )
     duration_minutes: int | None = Field(default=None, nullable=True)
 
     # Relationships

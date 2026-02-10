@@ -45,9 +45,10 @@ async def recommend_workout(
     db_sessions = result.scalars().all()
 
     # Convert DB records → TrainingHistory (Pydantic)
+    # Handle None values by providing empty list
     history_entries = [
         HistoryEntry(
-            archetype=session.archetype_name,
+            impacted_patterns=session.impacted_patterns or [],
             date=session.date.date(),  # Convert datetime to date
         )
         for session in db_sessions

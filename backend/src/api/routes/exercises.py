@@ -15,14 +15,7 @@ router = APIRouter()
 async def list_exercises(
     db: AsyncSession = Depends(get_db),
 ) -> list[Exercise]:
-    """List all available exercises.
-
-    Args:
-        db: Database session
-
-    Returns:
-        List of Exercise records
-    """
+    """List all available exercises."""
     stmt = select(Exercise).order_by(Exercise.name)
     result = await db.execute(stmt)
     exercises = result.scalars().all()
@@ -34,10 +27,11 @@ async def seed_exercises(
     db: AsyncSession = Depends(get_db),
     engine: WorkoutEngine = Depends(get_engine),
 ) -> dict[str, int]:
-    """Seed database with exercises from program config.
+    """Seed database with exercises from Phase 6 V2 Config.
 
-    Extracts unique exercise names from all sessions in the config
-    and creates Exercise records if they don't exist.
+    Robustly scrapes exercises from config.library, handling both:
+    1. Traffic Light Dicts (Squat/Hinge): {GREEN: "Name", RED: "Name"}
+    2. Power Lists (RFD): ["Jump 1", "Jump 2"]
 
     Args:
         db: Database session
@@ -45,29 +39,71 @@ async def seed_exercises(
 
     Returns:
         Dictionary with count of exercises created
-
-    Raises:
-        HTTPException: If database operation fails
     """
-    # Extract unique exercise names from all sessions
-    exercise_names: set[str] = set()
-    for session in engine.config.sessions:
-        exercise_names.update(session.exercises)
 
+    def to_dict(obj):
+        if isinstance(obj, dict):
+            return obj
+        if hasattr(obj, "model_dump"):
+            return obj.model_dump()
+        if hasattr(obj, "dict"):
+            return obj.dict()
+        return vars(obj)
+
+    # 1. Map Name -> Category to prevent duplicates
+    exercises_map: dict[str, str] = {}
+
+    # 2. Extract from Library
+    # Access lowercase 'library' if 'Library' doesn't exist
+    library_obj = getattr(engine.config, "library", getattr(engine.config, "Library", {}))
+    library_data = to_dict(library_obj)
+
+    for pattern, variants in library_data.items():
+        # pattern = SQUAT, RFD, etc.
+        if not isinstance(variants, dict):
+            continue
+
+        for variant_name, entry_data in variants.items():
+            # CASE A: Standard Traffic Light Pattern (Dict)
+            # Structure: {GREEN: "Back Squat", RED: "SKIP"}
+            if isinstance(entry_data, dict):
+                for state, exercise_name in entry_data.items():
+                    if exercise_name and isinstance(exercise_name, str) and exercise_name != "SKIP":
+                        if exercise_name not in exercises_map:
+                            exercises_map[exercise_name] = pattern
+
+            # CASE B: RFD/Power Pattern (List)
+            # Structure: ["Hurdle Jump", "Box Jump"]
+            elif isinstance(entry_data, list):
+                for exercise_name in entry_data:
+                    if exercise_name and isinstance(exercise_name, str):
+                        if exercise_name not in exercises_map:
+                            exercises_map[exercise_name] = pattern
+
+    # 3. Check for standalone RFD section (Just in case it's not in library)
+    rfd_obj = getattr(engine.config, "RFD", getattr(engine.config, "rfd", {}))
+    if rfd_obj and rfd_obj != library_data.get("RFD"):
+        rfd_data = to_dict(rfd_obj)
+        for power_type, exercise_list in rfd_data.items():
+            if isinstance(exercise_list, list):
+                for exercise_name in exercise_list:
+                    if exercise_name not in exercises_map:
+                        exercises_map[exercise_name] = "RFD"
+
+    # 4. Database Insertion
     created_count = 0
 
-    for exercise_name in exercise_names:
+    for exercise_name, category in exercises_map.items():
         # Check if exercise already exists
         stmt = select(Exercise).where(Exercise.name == exercise_name)
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
 
         if not existing:
-            # Create new exercise with placeholder category and modality
             new_exercise = Exercise(
                 name=exercise_name,
-                category="General",  # Placeholder - can be enhanced later
-                modality="Unknown",  # Placeholder - can be enhanced later
+                category=category,
+                modality="Strength" if category != "RFD" else "Power",
             )
             db.add(new_exercise)
             created_count += 1
@@ -78,7 +114,7 @@ async def seed_exercises(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to seed exercises",
+            detail=f"Failed to seed exercises: {str(e)}",
         ) from e
 
-    return {"created": created_count}
+    return {"created": created_count, "total_unique": len(exercises_map)}
