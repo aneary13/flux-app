@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0] - 2026-01-27
+
+### Added
+- **Agile Training Logic v2.0 (Phase 6)**:
+  - Pattern debt tracking: days since last performance per pattern; defaults to 100 when never performed.
+  - Session type selection (Level 1): REST when energy &lt; 5, else GYM or CONDITIONING based on gym vs conditioning debt.
+  - Block-by-block session composition: PREP (PATELLAR_ISO + CORE), POWER (RFD), STRENGTH (main lift), ACCESSORIES from relationships.
+  - Configurable **PATELLAR_ISO** in `program_config.yaml` so the first exercise (e.g. "SL Wall Sit") is configurable per state.
+  - `session_structure` in config defining PREP, POWER, STRENGTH, ACCESSORIES components.
+  - New config schema: `patterns`, `relationships` (PATTERN:TIER), `library` (including CORE tiers, RFD, PATELLAR_ISO), `power_selection`, `session_structure`, `states`.
+  - Backward compatibility: SessionPlan computed fields `exercises`, `session_name`, `archetype` for existing frontend.
+- Database: `WorkoutSession.impacted_patterns` (JSON) and `session_type`; migration for pattern tracking.
+- API: Workout recommendation uses `impacted_patterns` from history (with `None`/empty handling).
+
+### Changed
+- Replaced archetype/session-based selection with pattern-debt and library-based composition.
+- Removed `power_library`; RFD exercises live under `library.RFD` (HIGH/LOW/UPPER) with state selection via `power_selection`.
+- Relationships format is now `PATTERN:TIER` (e.g. `PULL:ACCESSORY_HORIZONTAL`).
+- RFD block uses all exercises for the selected type (not a single random choice).
+
+### Fixed
+- SQLModel: removed `nullable=True` from `Field()` when using `sa_column` to fix Alembic startup error.
+- Test suite updated for v2.0 config and engine (pattern debt, skip logic, relationship logic, backward compat).
+
+---
+
 ## [0.5.0] - 2026-01-21
 
 ### Added
@@ -112,7 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pull request template.
 - Changelog file.
 
-[Unreleased]: https://github.com/aneary13/flux-app/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/aneary13/flux-app/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/aneary13/flux-app/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/aneary13/flux-app/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/aneary13/flux-app/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/aneary13/flux-app/compare/v0.2.0...v0.3.0

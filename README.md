@@ -35,7 +35,7 @@ flux-app/
 │   │   ├── test_models.py      # Test Pydantic validation
 │   │   └── test_engine.py     # Test logic engine
 │   ├── config/
-│   │   └── program_config.yaml  # Configuration with archetypes, states, sessions
+│   │   └── program_config.yaml  # Program config: patterns, library, session_structure, states
 │   ├── .env.example           # Environment variables template
 │   ├── pyproject.toml         # uv project config with dependencies
 │   ├── requirements.txt       # Production dependencies (generated)
@@ -66,8 +66,14 @@ flux-app/
 
 ### Phase 1: Logic Core
 - **State Determination**: Evaluates user readiness (pain 0-10, energy 0-10) to determine state (RED/ORANGE/GREEN).
-- **Priority Calculation**: Calculates priority scores for each training archetype based on how long ago it was last performed vs. ideal frequency.
-- **Session Generation**: Recommends the optimal training session based on state and priority.
+- **Session Generation**: Recommends the optimal training session based on state and history.
+
+### Phase 6: Agile Training Logic (v2.0)
+- **Pattern Debt Tracking**: Calculates days since last performance for each movement pattern; supports legacy data (handles `None`/empty `impacted_patterns`).
+- **Session Type Selection**: Chooses REST, GYM, or CONDITIONING based on energy and pattern debt (Level 1 logic).
+- **Block-by-Block Composition**: Builds GYM sessions from PREP (PATELLAR_ISO, CORE), POWER (RFD), STRENGTH (main lift), and ACCESSORIES (relationship-based).
+- **Configurable Program**: YAML-driven library (patterns, tiers, states), `session_structure`, `power_selection`, and configurable **PATELLAR_ISO** (e.g. first exercise such as "SL Wall Sit").
+- **Backward Compatibility**: SessionPlan exposes `exercises`, `session_name`, and `archetype` as computed fields for the frontend.
 
 ### Phase 2: Data Layer
 - **Database Models**: SQLModel tables for exercises, daily readiness logs, workout sessions, and workout sets.
@@ -245,6 +251,19 @@ Returns: SessionPlan with recommended workout details
 ## Deployment
 
 See [DEPLOY.md](DEPLOY.md) for detailed instructions on deploying the backend to Render.com.
+
+## Configuration
+
+The backend uses `backend/config/program_config.yaml` to define:
+
+- **patterns**: Main (SQUAT, HINGE, PUSH, PULL), accessory (e.g. LUNGE), and core (CORE).
+- **relationships**: Which accessory patterns follow each main pattern (format: `PATTERN:TIER`, e.g. `PULL:ACCESSORY_HORIZONTAL`).
+- **library**: Exercise matrix by pattern, tier, and state (GREEN/ORANGE/RED). Includes **PATELLAR_ISO** (configurable first exercise, e.g. "SL Wall Sit"), CORE (TRANSVERSE, SAGITTAL, FRONTAL), RFD (HIGH/LOW/UPPER), and all main/accessory exercises.
+- **power_selection**: Which RFD type to use per state.
+- **session_structure**: Order of PREP (WARM_UP, PATELLAR_ISO, CORE), POWER (RFD), STRENGTH, ACCESSORIES.
+- **states**: Readiness state conditions (e.g. RED when `knee_pain >= 6`).
+
+Edit the YAML to change exercises, progressions, or session structure without code changes.
 
 ## Database Migrations
 
