@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] - 2026-02-10
+
+### Added
+- **Complete Workout (feedback loop)**:
+  - `POST /api/v1/workouts` to log completed sessions with sets (exercise_name, weight_kg, reps, RPE). Persists `WorkoutSession` (UUID, started_at, completed_at, readiness_score, notes) and `WorkoutSet`; upserts `PatternInventory` so pattern debt resets for performed exercises.
+  - Recommend flow now builds training history from `PatternInventory` (grouped by date) instead of session records.
+  - Pydantic schemas `WorkoutSessionCreate`/`WorkoutSessionRead` and service `log_completed_session` in `src/services/workout.py`.
+- **Database**: New/updated schema via migrations: `PatternInventory` table; `WorkoutSession`/`WorkoutSet` with UUID PKs and new fields. Second migration alters workout/pattern timestamps to TIMESTAMPTZ (timezone-aware) to fix asyncpg errors when frontend sends ISO 8601 with timezone.
+- **Pattern priority**: Config key `pattern_priority` (e.g. SQUAT, PUSH, HINGE, PULL) and engine sort by (-debt, priority index) so tied main-pattern debts follow an Upper/Lower rotation.
+
+### Changed
+- Workout recommendation uses `PatternInventory` as the source of pattern history; completing a workout updates inventory and resets debt for those patterns.
+
+---
+
 ## [0.6.0] - 2026-01-27
 
 ### Added
@@ -138,7 +153,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pull request template.
 - Changelog file.
 
-[Unreleased]: https://github.com/aneary13/flux-app/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/aneary13/flux-app/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/aneary13/flux-app/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/aneary13/flux-app/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/aneary13/flux-app/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/aneary13/flux-app/compare/v0.3.0...v0.4.0

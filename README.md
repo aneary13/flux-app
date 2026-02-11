@@ -18,13 +18,16 @@ flux-app/
 │   │   │       ├── __init__.py
 │   │   │       ├── readiness.py  # Readiness check-in endpoints
 │   │   │       ├── exercises.py  # Exercise management endpoints
-│   │   │       └── workouts.py   # Workout recommendation endpoints
+│   │   │       └── workouts.py   # Workout recommendation and completion endpoints
+│   │   ├── schemas.py           # Pydantic request/response schemas (workouts, etc.)
 │   │   ├── db/
 │   │   │   ├── __init__.py
 │   │   │   ├── models.py      # SQLModel database tables
 │   │   │   └── session.py     # Async database session management
 │   │   ├── models.py          # Pydantic models for config, input, output
 │   │   ├── engine.py          # WorkoutEngine class with core logic
+│   │   ├── services/
+│   │   │   └── workout.py     # Workout completion service (log session, update pattern inventory)
 │   │   └── main.py            # FastAPI application entry point
 │   ├── alembic/
 │   │   ├── versions/          # Database migration files
@@ -64,50 +67,24 @@ flux-app/
 
 ## Features
 
-### Phase 1: Logic Core
-- **State Determination**: Evaluates user readiness (pain 0-10, energy 0-10) to determine state (RED/ORANGE/GREEN).
-- **Session Generation**: Recommends the optimal training session based on state and history.
+### Training logic
+- **Readiness states**: Evaluates pain (0–10) and energy (0–10) to determine state (RED / ORANGE / GREEN).
+- **Pattern debt**: Tracks days since each movement pattern was last performed; history comes from `PatternInventory`, updated when users complete workouts.
+- **Session type**: Chooses REST, GYM, or CONDITIONING from energy and pattern debt.
+- **Session composition**: Builds GYM sessions as PREP (PATELLAR_ISO, CORE), POWER (RFD), STRENGTH (main lift), and ACCESSORIES from config relationships.
+- **Pattern priority**: When main-pattern debts are tied, uses `pattern_priority` (e.g. SQUAT → PUSH → HINGE → PULL) for an Upper/Lower rotation.
+- **Configurable program**: YAML config for patterns, library (tiers, states), `session_structure`, `power_selection`, `pattern_priority`, and PATELLAR_ISO. SessionPlan exposes `exercises`, `session_name`, and `archetype` for the frontend.
 
-### Phase 6: Agile Training Logic (v2.0)
-- **Pattern Debt Tracking**: Calculates days since last performance for each movement pattern; supports legacy data (handles `None`/empty `impacted_patterns`).
-- **Session Type Selection**: Chooses REST, GYM, or CONDITIONING based on energy and pattern debt (Level 1 logic).
-- **Block-by-Block Composition**: Builds GYM sessions from PREP (PATELLAR_ISO, CORE), POWER (RFD), STRENGTH (main lift), and ACCESSORIES (relationship-based).
-- **Configurable Program**: YAML-driven library (patterns, tiers, states), `session_structure`, `power_selection`, and configurable **PATELLAR_ISO** (e.g. first exercise such as "SL Wall Sit").
-- **Backward Compatibility**: SessionPlan exposes `exercises`, `session_name`, and `archetype` as computed fields for the frontend.
+### Data and API
+- **Database**: SQLModel tables for exercises, daily readiness, `PatternInventory`, `WorkoutSession` (UUID, started_at/completed_at, readiness_score, notes), and `WorkoutSet` (exercise_name, weight_kg, reps, RPE). Timestamps are timezone-aware (TIMESTAMPTZ). Async PostgreSQL via asyncpg; Alembic migrations.
+- **Endpoints**: Readiness check-in (upsert), exercise list/seed, workout recommendation (from pattern-inventory history), and complete workout (`POST /api/v1/workouts` to log sessions and update pattern inventory). CORS and `X-User-Id` header for user identification.
 
-### Phase 2: Data Layer
-- **Database Models**: SQLModel tables for exercises, daily readiness logs, workout sessions, and workout sets.
-- **Async Database Operations**: High-performance async database connections using asyncpg.
-- **Database Migrations**: Alembic integration for schema versioning and migrations.
-- **Relationships**: SQLModel relationships for easy data access (e.g., `WorkoutSession.sets`).
+### Frontend
+- **Mobile app**: React Native (Expo) with TypeScript, Expo Router, NativeWind (Tailwind), TanStack Query. Persistent user ID per device; base URL for Android/iOS.
+- **Screens**: Daily readiness check-in (pain/energy), workout plan display. Handles Rest Day (404) and other errors.
 
-### Phase 3: API Layer
-- **FastAPI Application**: RESTful API exposing WorkoutEngine logic and database operations.
-- **Dependency Injection**: Clean separation of concerns with reusable dependencies.
-- **Readiness Endpoints**: Record daily readiness check-ins with upsert support.
-- **Exercise Management**: List and seed exercises from configuration.
-- **Workout Recommendations**: Generate personalized workout plans based on readiness and history.
-- **CORS Support**: Cross-origin resource sharing enabled for frontend integration.
-- **User Identification**: Header-based user ID extraction (ready for authentication upgrade).
-
-### Phase 4: Frontend Application
-- **React Native Expo App**: Cross-platform mobile application with TypeScript.
-- **Expo Router**: File-based routing for navigation.
-- **NativeWind v4**: Tailwind CSS styling for React Native.
-- **TanStack Query**: Data fetching, caching, and state management.
-- **User ID Persistence**: Automatic UUID generation and storage per device.
-- **Daily Readiness Check-In**: Interactive UI for pain and energy level input.
-- **Workout Plan Display**: Beautiful card-based UI showing recommended workouts.
-- **Error Handling**: Graceful handling of 404 (Rest Day) and other API errors.
-- **Platform Detection**: Automatic base URL configuration for Android/iOS simulators.
-
-### Phase 5: Deployment
-- **Backend Deployment**: Production-ready deployment configuration for Render.com.
-- **Requirements File**: Standardized `requirements.txt` generated from `pyproject.toml` (excluding dev dependencies and local project references).
-- **Production Start Script**: Automated migration and server startup script (`start.sh`).
-- **Environment Variables**: Frontend support for production API URL via `EXPO_PUBLIC_API_URL`.
-- **Deployment Documentation**: Comprehensive deployment guide (`DEPLOY.md`).
-- **Automatic Migrations**: Database migrations run automatically on each deployment.
+### Deployment
+- **Backend**: Render.com config, `requirements.txt` from `pyproject.toml`, `start.sh` (migrations + uvicorn). Frontend uses `EXPO_PUBLIC_API_URL` for production. See [DEPLOY.md](DEPLOY.md).
 
 ## Setup
 
@@ -237,6 +214,24 @@ Body:
 ```
 Returns: SessionPlan with recommended workout details
 
+#### Complete Workout
+```http
+POST /api/v1/workouts
+Headers:
+  X-User-Id: <uuid>
+Body:
+  {
+    "started_at": "2024-01-15T10:00:00Z",
+    "completed_at": "2024-01-15T11:00:00Z",
+    "readiness_score": 7,
+    "notes": "Optional notes",
+    "sets": [
+      { "exercise_name": "Back Squat", "weight_kg": 100, "reps": 5, "rpe": 8, "set_order": 0 }
+    ]
+  }
+```
+Returns: 201 with saved WorkoutSession (id, user_id, timestamps, sets). Send datetimes in UTC (e.g. ISO 8601 with `Z`).
+
 ## Troubleshooting
 
 ### Backend / Database
@@ -257,6 +252,7 @@ See [DEPLOY.md](DEPLOY.md) for detailed instructions on deploying the backend to
 The backend uses `backend/config/program_config.yaml` to define:
 
 - **patterns**: Main (SQUAT, HINGE, PUSH, PULL), accessory (e.g. LUNGE), and core (CORE).
+- **pattern_priority**: Default rotation when main-pattern debts are tied (e.g. SQUAT, PUSH, HINGE, PULL for Upper/Lower alternation).
 - **relationships**: Which accessory patterns follow each main pattern (format: `PATTERN:TIER`, e.g. `PULL:ACCESSORY_HORIZONTAL`).
 - **library**: Exercise matrix by pattern, tier, and state (GREEN/ORANGE/RED). Includes **PATELLAR_ISO** (configurable first exercise, e.g. "SL Wall Sit"), CORE (TRANSVERSE, SAGITTAL, FRONTAL), RFD (HIGH/LOW/UPPER), and all main/accessory exercises.
 - **power_selection**: Which RFD type to use per state.
