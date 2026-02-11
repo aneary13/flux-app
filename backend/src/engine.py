@@ -267,12 +267,18 @@ class WorkoutEngine:
 
         # Block 3: Main Lift
         main_patterns = self.config.patterns.main
-        # Sort by debt (highest first)
-        sorted_main = sorted(
-            main_patterns,
-            key=lambda p: pattern_debts.get(p, 100),
-            reverse=True,
-        )
+        # Tie-breaker: when debts are equal, use pattern_priority (Lower/Upper rotation)
+        priority_index = {
+            name: idx for idx, name in enumerate(self.config.pattern_priority)
+        }
+        fallback_priority = len(self.config.pattern_priority)
+
+        def sort_key(p: str) -> tuple:
+            debt = pattern_debts.get(p, 100)
+            idx = priority_index.get(p, fallback_priority)
+            return (-debt, idx)
+
+        sorted_main = sorted(main_patterns, key=sort_key)
 
         main_selected = False
         selected_main_pattern = None

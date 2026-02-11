@@ -25,6 +25,12 @@ patterns:
   core:
     - CORE
 
+pattern_priority:
+  - SQUAT
+  - PUSH
+  - HINGE
+  - PULL
+
 relationships:
   SQUAT:
     - PULL:ACCESSORY_HORIZONTAL
@@ -355,6 +361,12 @@ patterns:
     - LUNGE
   core:
     - CORE
+
+pattern_priority:
+  - SQUAT
+  - PUSH
+  - HINGE
+  - PULL
 
 relationships:
   SQUAT:

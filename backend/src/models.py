@@ -45,6 +45,9 @@ class ProgramConfig(BaseModel):
     """Root configuration model for the program."""
 
     patterns: PatternConfig
+    pattern_priority: List[str] = Field(
+        description="Default rotation for main pattern when debts are tied; first in list has highest priority."
+    )
     relationships: Dict[str, List[str]] = Field(
         description="Pattern relationships for accessory selection (format: PATTERN:TIER)"
     )
