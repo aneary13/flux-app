@@ -326,25 +326,110 @@ class WorkoutEngine:
 
         return SessionPlan(session_type="GYM", blocks=blocks)
 
+    def _compose_red_session(
+        self,
+        readiness: Readiness,
+        history: TrainingHistory,
+        last_push_plane: str | None = None,
+    ) -> SessionPlan:
+        """Compose a Red Day (recovery) session: mobility, isometrics, balanced pump, conditioning.
+
+        Block 1: PREP (mobility) – check-off items from config.
+        Block 2: ISOMETRICS – repair isometrics from config (tracked as WorkoutSet).
+        Block 3: ACCESSORIES – 1 Push + 1 Pull, opposite planes (Orange volume); plane from last_push_plane.
+        Block 4: CONDITIONING – Zone 2 / Steady State.
+
+        Args:
+            readiness: User readiness (unused but kept for signature consistency)
+            history: Training history (unused for red session composition)
+            last_push_plane: "VERTICAL" or "HORIZONTAL" from PatternHistory; if "VERTICAL" we do HORIZONTAL push today
+        """
+        blocks: List[ExerciseBlock] = []
+
+        # Block 1: PREP (Mobility) – check-off items
+        for name in getattr(self.config, "mobility_exercises", []) or []:
+            blocks.append(
+                ExerciseBlock(
+                    block_type="PREP",
+                    exercise_name=name,
+                    pattern="MOBILITY",
+                )
+            )
+
+        # Block 2: ISOMETRICS (Repair)
+        for iso in getattr(self.config, "repair_isometrics", []) or []:
+            blocks.append(
+                ExerciseBlock(
+                    block_type="ISOMETRICS",
+                    exercise_name=iso.name,
+                    pattern=iso.category,
+                )
+            )
+
+        # Block 3: ACCESSORIES – 1 Push + 1 Pull, opposite planes (Orange volume)
+        # If last push was VERTICAL -> today HORIZONTAL push, VERTICAL pull. Else VERTICAL push, HORIZONTAL pull.
+        if last_push_plane == "VERTICAL":
+            push_tier = "ACCESSORY_HORIZONTAL"
+            pull_tier = "ACCESSORY_VERTICAL"
+        else:
+            push_tier = "ACCESSORY_VERTICAL"
+            pull_tier = "ACCESSORY_HORIZONTAL"
+
+        push_exercise = self._get_exercise_from_library("PUSH", push_tier, "ORANGE")
+        pull_exercise = self._get_exercise_from_library("PULL", pull_tier, "ORANGE")
+        if push_exercise and push_exercise != "SKIP":
+            blocks.append(
+                ExerciseBlock(
+                    block_type="ACCESSORY_1",
+                    exercise_name=push_exercise,
+                    pattern=f"PUSH:{push_tier}",
+                )
+            )
+        if pull_exercise and pull_exercise != "SKIP":
+            blocks.append(
+                ExerciseBlock(
+                    block_type="ACCESSORY_2",
+                    exercise_name=pull_exercise,
+                    pattern=f"PULL:{pull_tier}",
+                )
+            )
+
+        # Block 4: CONDITIONING
+        blocks.append(
+            ExerciseBlock(
+                block_type="CONDITIONING",
+                exercise_name="Zone 2 / Steady State — Self-guided duration. Keep heart rate low.",
+                pattern="CONDITIONING:SS",
+            )
+        )
+
+        return SessionPlan(session_type="GYM", blocks=blocks)
 
     def generate_session(
-        self, readiness: Readiness, history: TrainingHistory
+        self,
+        readiness: Readiness,
+        history: TrainingHistory,
+        last_push_plane: str | None = None,
     ) -> SessionPlan:
-        """Generate the recommended session plan (lifting blocks only).
+        """Generate the recommended session plan.
 
-        Every request is a GYM session. Returns Prep + Power + Main + Accessories
-        only; the conditioning block is appended by the route via the conditioning
-        service (Option II: Service Composition).
+        When computed_state is RED, returns a Red Day (recovery) session with mobility,
+        isometrics, balanced pump, and conditioning. Otherwise returns lifting blocks
+        only; the route appends the conditioning block via the conditioning service.
 
         Args:
             readiness: User readiness with pain and energy levels
             history: User training history
+            last_push_plane: For RED sessions, "VERTICAL" or "HORIZONTAL" from PatternHistory (plane balancing)
 
         Returns:
-            SessionPlan with session_type="GYM" and lifting blocks only
+            SessionPlan (GYM; Red Day already includes conditioning block)
 
         Raises:
-            ValueError: If no valid main lift is available
+            ValueError: If no valid main lift when not RED
         """
+        state = self.determine_state(readiness)
+        if state == "RED":
+            return self._compose_red_session(readiness, history, last_push_plane)
         pattern_debts = self.calculate_pattern_debts(history)
         return self.compose_gym_session(readiness, pattern_debts)

@@ -34,6 +34,21 @@ def _build_history_from_pattern_history(rows: list) -> TrainingHistory:
     return TrainingHistory(entries=entries)
 
 
+def _last_push_plane_from_history(rows: list) -> str | None:
+    """From PatternHistory rows (ordered by last_performed desc), return last PUSH plane.
+
+    Returns "VERTICAL" if last PUSH was ACCESSORY_VERTICAL, "HORIZONTAL" if ACCESSORY_HORIZONTAL, else None.
+    """
+    for row in rows:
+        if not row.pattern.startswith("PUSH:"):
+            continue
+        if "ACCESSORY_VERTICAL" in row.pattern:
+            return "VERTICAL"
+        if "ACCESSORY_HORIZONTAL" in row.pattern:
+            return "HORIZONTAL"
+    return None
+
+
 @router.post("/recommend", response_model=SessionPlan)
 async def recommend_workout(
     readiness: Readiness,
@@ -55,15 +70,19 @@ async def recommend_workout(
     history_rows = result.scalars().all()
     history = _build_history_from_pattern_history(history_rows)
 
+    state = engine.determine_state(readiness)
+    last_push_plane = _last_push_plane_from_history(history_rows) if state == "RED" else None
+
     try:
-        lifting_plan = engine.generate_session(readiness, history)
+        lifting_plan = engine.generate_session(readiness, history, last_push_plane=last_push_plane)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         ) from e
 
-    state = engine.determine_state(readiness)
+    if state == "RED":
+        return lifting_plan
     conditioning_block = await get_conditioning_block(state, user_id, db)
     blocks = list(lifting_plan.blocks) + [conditioning_block]
     return SessionPlan(session_type="GYM", blocks=blocks)

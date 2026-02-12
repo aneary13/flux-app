@@ -41,6 +41,14 @@ class StateConfig(BaseModel):
     condition: str = Field(description="Condition expression or 'default'")
 
 
+class RepairIsometricConfig(BaseModel):
+    """Single repair isometric exercise for Red Day."""
+
+    name: str
+    category: str = "ISOMETRIC"
+    settings: Dict[str, int | str] = Field(default_factory=dict)
+
+
 class ProgramConfig(BaseModel):
     """Root configuration model for the program."""
 
@@ -57,6 +65,11 @@ class ProgramConfig(BaseModel):
     power_selection: PowerSelectionConfig
     session_structure: SessionStructureConfig
     states: List[StateConfig]
+    mobility_exercises: List[str] = Field(default_factory=list, description="Red Day prep: check-off mobility items")
+    repair_isometrics: List[RepairIsometricConfig] = Field(
+        default_factory=list,
+        description="Red Day: isometric repair exercises (tracked as WorkoutSet)",
+    )
 
 
 # Input Models

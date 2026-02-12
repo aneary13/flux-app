@@ -90,20 +90,51 @@ async def seed_exercises(
                     if exercise_name not in exercises_map:
                         exercises_map[exercise_name] = "RFD"
 
-    # 4. Database Insertion
+    # 4. Red Day: mobility_exercises (check-off) and repair_isometrics (tracked)
+    mobility = getattr(engine.config, "mobility_exercises", []) or []
+    for name in mobility:
+        if name and name not in exercises_map:
+            exercises_map[name] = "MOBILITY"
+    repair_isometrics = getattr(engine.config, "repair_isometrics", []) or []
+    red_metadata: dict[str, dict] = {}  # name -> {tracking_unit, is_unilateral, is_bodyweight, modality}
+    for iso in repair_isometrics:
+        name = getattr(iso, "name", iso.get("name") if isinstance(iso, dict) else None)
+        if not name:
+            continue
+        if name not in exercises_map:
+            exercises_map[name] = getattr(iso, "category", "ISOMETRIC")
+        settings = getattr(iso, "settings", {}) if hasattr(iso, "settings") else (iso.get("settings", {}) if isinstance(iso, dict) else {})
+        load_type = (settings.get("load_type") if isinstance(settings, dict) else None) or "WEIGHTED"
+        red_metadata[name] = {
+            "tracking_unit": "SECS",
+            "is_unilateral": True,
+            "is_bodyweight": load_type == "BODYWEIGHT",
+            "modality": "Strength",
+        }
+
+    # 5. Database Insertion
     created_count = 0
 
     for exercise_name, category in exercises_map.items():
-        # Check if exercise already exists
         stmt = select(Exercise).where(Exercise.name == exercise_name)
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
 
         if not existing:
+            meta = red_metadata.get(exercise_name, {})
+            if category == "MOBILITY":
+                modality = "Mobility"
+            elif category == "RFD":
+                modality = "Power"
+            else:
+                modality = meta.get("modality") or "Strength"
             new_exercise = Exercise(
                 name=exercise_name,
                 category=category,
-                modality="Strength" if category != "RFD" else "Power",
+                modality=modality,
+                tracking_unit=meta.get("tracking_unit", "REPS"),
+                is_unilateral=meta.get("is_unilateral", False),
+                is_bodyweight=meta.get("is_bodyweight", False),
             )
             db.add(new_exercise)
             created_count += 1

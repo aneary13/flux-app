@@ -136,3 +136,18 @@ states:
     condition: "(knee_pain >= 3) OR (energy <= 3)"
   - name: "GREEN"
     condition: "default"
+
+# Red Day (Recovery) – triggered when computed_state == RED
+mobility_exercises:
+  - "Cat Cow"
+  - "World's Greatest Stretch"
+  - "90/90 Hip Switch"
+  - "Adductor Rock"
+
+repair_isometrics:
+  - name: "SL Knee Extension Iso"
+    category: "ISOMETRIC"
+    settings: { sets: 3, duration_seconds: 45, load_type: "WEIGHTED" }
+  - name: "SL Foam Roller Hamstring Iso"
+    category: "ISOMETRIC"
+    settings: { sets: 3, duration_seconds: 45, load_type: "BODYWEIGHT" }
