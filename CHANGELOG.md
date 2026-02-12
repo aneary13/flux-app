@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Modular configuration**: Backend config split from a single `program_config.yaml` into five domain YAML files in `backend/config/`: `library.yaml` (exercise catalog and metadata), `logic.yaml` (thresholds, pattern_priority, power_selection, relationships, patterns), `sessions.yaml` (GYM and RECOVERY session structures), `selections.yaml` (exercise mappings by pattern/tier/state), `conditioning.yaml` (protocols and equipment). New `src.config` module with Pydantic models and `load_config(config_dir)`.
+- **Red Day (Recovery) sessions**: When readiness state is RED, the recommend endpoint returns a dedicated recovery session: mobility flow (check-off), repair isometrics (tracked), 1 Push + 1 Pull (opposite planes, plane balancing from PatternHistory), and Zone 2 / Steady State conditioning. No separate conditioning block is appended for RED.
+- **Exercise seed from catalog**: `POST /api/v1/exercises/seed` now uses `config.library.catalog` as the source of truth; maps `settings.unit` (SECS/WATTS/REPS), `settings.unilateral`, and `settings.load` (BODYWEIGHT) to `Exercise` fields.
+
+### Changed
+- **Engine**: `WorkoutEngine` now accepts a config directory and uses `load_config()`; reads state thresholds from `config.logic.thresholds`; uses `config.selections` for exercise lookup (replacing `config.library` for selection); uses `config.logic` for pattern_priority, relationships, power_selection, patterns; Red Day uses `config.sessions.RECOVERY.mobility_flow` and `repair_isometrics`.
+- **Seeds**: Conditioning protocols loaded from `config.conditioning.protocols` (conditioning.yaml) via `load_config` in `src.db.seeds`.
+- **Models**: Removed legacy config models from `src.models` (PatternConfig, ProgramConfig, etc.); config lives in `src.config`. Input/output models (Readiness, SessionPlan, ExerciseBlock, etc.) remain in `src.models`.
+- **API deps**: `get_engine()` now passes `CONFIG_DIR` (config directory) to `WorkoutEngine` instead of a single config file path.
+- **Tests**: Engine tests updated to write all five modular config files into a temp directory; fixed logic.yaml thresholds indentation so `thresholds` parses as a dict.
+
 ---
 
 ## [0.7.0] - 2026-02-10

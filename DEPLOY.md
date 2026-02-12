@@ -58,7 +58,7 @@ Render (and many local networks) usually run on IPv4, while Supabase's direct co
 2.  The `start.sh` script runs:
     -   Executes `alembic upgrade head` to apply any pending database migrations (e.g. new workout tables, PatternInventory, TIMESTAMPTZ columns).
     -   Starts the FastAPI server using `uvicorn` on `0.0.0.0:$PORT`.
-3.  The server loads `config/program_config.yaml` at startup for workout logic (patterns, pattern_priority, library, session structure). Ensure this file is committed to the repo.
+3.  The server loads the modular config from `config/` at startup (library.yaml, logic.yaml, sessions.yaml, selections.yaml, conditioning.yaml) for workout logic. Ensure all five files are committed to the repo.
 
 ## 4. Verification
 

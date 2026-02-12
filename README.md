@@ -20,11 +20,13 @@ flux-app/
 │   │   │       ├── exercises.py  # Exercise management endpoints
 │   │   │       └── workouts.py   # Workout recommendation and completion endpoints
 │   │   ├── schemas.py           # Pydantic request/response schemas (workouts, etc.)
+│   │   ├── config.py            # Modular config loader (library, logic, sessions, selections, conditioning)
 │   │   ├── db/
 │   │   │   ├── __init__.py
 │   │   │   ├── models.py      # SQLModel database tables
+│   │   │   ├── seeds.py       # Conditioning protocols seed + runner
 │   │   │   └── session.py     # Async database session management
-│   │   ├── models.py          # Pydantic models for config, input, output
+│   │   ├── models.py          # Pydantic models for input/output (config in config.py)
 │   │   ├── engine.py          # WorkoutEngine class with core logic
 │   │   ├── services/
 │   │   │   └── workout.py     # Workout completion service (log session, update pattern inventory)
@@ -37,8 +39,12 @@ flux-app/
 │   ├── tests/
 │   │   ├── test_models.py      # Test Pydantic validation
 │   │   └── test_engine.py     # Test logic engine
-│   ├── config/
-│   │   └── program_config.yaml  # Program config: patterns, library, session_structure, states
+│   ├── config/                   # Modular YAML config (loaded by src.config.load_config)
+│   │   ├── library.yaml          # Exercise catalog and metadata
+│   │   ├── logic.yaml            # Thresholds, pattern_priority, power_selection, relationships
+│   │   ├── sessions.yaml         # GYM and RECOVERY (Red Day) session structures
+│   │   ├── selections.yaml       # Exercise mappings by pattern/tier/state
+│   │   └── conditioning.yaml     # Conditioning protocols and equipment
 │   ├── .env.example           # Environment variables template
 │   ├── pyproject.toml         # uv project config with dependencies
 │   ├── requirements.txt       # Production dependencies (generated)
@@ -71,9 +77,9 @@ flux-app/
 - **Readiness states**: Evaluates pain (0–10) and energy (0–10) to determine state (RED / ORANGE / GREEN).
 - **Pattern debt**: Tracks days since each movement pattern was last performed; history comes from `PatternInventory`, updated when users complete workouts.
 - **Session type**: Chooses REST, GYM, or CONDITIONING from energy and pattern debt.
-- **Session composition**: Builds GYM sessions as PREP (PATELLAR_ISO, CORE), POWER (RFD), STRENGTH (main lift), and ACCESSORIES from config relationships.
+- **Session composition**: Builds GYM sessions as PREP (PATELLAR_ISO, CORE), POWER (RFD), STRENGTH (main lift), and ACCESSORIES from config relationships. When state is RED, returns a **Red Day (Recovery)** session: mobility flow, repair isometrics, 1 Push + 1 Pull (opposite planes), and Zone 2 conditioning.
 - **Pattern priority**: When main-pattern debts are tied, uses `pattern_priority` (e.g. SQUAT → PUSH → HINGE → PULL) for an Upper/Lower rotation.
-- **Configurable program**: YAML config for patterns, library (tiers, states), `session_structure`, `power_selection`, `pattern_priority`, and PATELLAR_ISO. SessionPlan exposes `exercises`, `session_name`, and `archetype` for the frontend.
+- **Modular config**: Five YAML files in `backend/config/` (library, logic, sessions, selections, conditioning) loaded by `src.config.load_config`. SessionPlan exposes `exercises`, `session_name`, and `archetype` for the frontend.
 
 ### Data and API
 - **Database**: SQLModel tables for exercises, daily readiness, `PatternInventory`, `WorkoutSession` (UUID, started_at/completed_at, readiness_score, notes), and `WorkoutSet` (exercise_name, weight_kg, reps, RPE). Timestamps are timezone-aware (TIMESTAMPTZ). Async PostgreSQL via asyncpg; Alembic migrations.
@@ -249,17 +255,17 @@ See [DEPLOY.md](DEPLOY.md) for detailed instructions on deploying the backend to
 
 ## Configuration
 
-The backend uses `backend/config/program_config.yaml` to define:
+The backend uses a **modular config** in `backend/config/` (loaded by `src.config.load_config`). Five YAML files define:
 
-- **patterns**: Main (SQUAT, HINGE, PUSH, PULL), accessory (e.g. LUNGE), and core (CORE).
-- **pattern_priority**: Default rotation when main-pattern debts are tied (e.g. SQUAT, PUSH, HINGE, PULL for Upper/Lower alternation).
-- **relationships**: Which accessory patterns follow each main pattern (format: `PATTERN:TIER`, e.g. `PULL:ACCESSORY_HORIZONTAL`).
-- **library**: Exercise matrix by pattern, tier, and state (GREEN/ORANGE/RED). Includes **PATELLAR_ISO** (configurable first exercise, e.g. "SL Wall Sit"), CORE (TRANSVERSE, SAGITTAL, FRONTAL), RFD (HIGH/LOW/UPPER), and all main/accessory exercises.
-- **power_selection**: Which RFD type to use per state.
-- **session_structure**: Order of PREP (WARM_UP, PATELLAR_ISO, CORE), POWER (RFD), STRENGTH, ACCESSORIES.
-- **states**: Readiness state conditions (e.g. RED when `knee_pain >= 6`).
+| File | Purpose |
+|------|---------|
+| **library.yaml** | Exercise catalog: name, category, optional settings (unit, unilateral, load). Source of truth for exercise seed. |
+| **logic.yaml** | `patterns` (main, accessory, core), `pattern_priority`, `thresholds` (energy/knee_pain bands), `power_selection`, `relationships` (PATTERN:TIER). |
+| **sessions.yaml** | **GYM** structure (PREP, POWER, STRENGTH, ACCESSORIES, CONDITIONING) and **RECOVERY** (Red Day): `mobility_flow`, `repair_isometrics`, accessories, steady-state conditioning. |
+| **selections.yaml** | Exercise mappings by pattern, tier, and state (GREEN/ORANGE/RED); used by the engine for session composition. |
+| **conditioning.yaml** | Conditioning protocols (SIT, HIIT, SS) and equipment. Seeded into DB via `src.db.seeds`. |
 
-Edit the YAML to change exercises, progressions, or session structure without code changes.
+Readiness state is derived from `logic.thresholds` (energy and knee_pain bands). When state is **RED**, the recommend endpoint returns a Red Day session (mobility, isometrics, balanced push/pull, Zone 2); no separate conditioning block is appended. Edit the YAML files to change exercises, progressions, or session structure without code changes.
 
 ## Database Migrations
 
