@@ -1,0 +1,14 @@
+# Readiness state thresholds (scores 0-10)
+# Overall state = minimum of the two per-score states (red < orange < green)
+#
+# Energy: higher is better.
+#   Green when score > upper; orange when lower < score <= upper; red when score <= lower
+energy:
+  lower: 2
+  upper: 5
+#
+# Knee pain: lower is better.
+#   Green when score <= lower; orange when lower < score <= upper; red when score > upper
+knee_pain:
+  lower: 3
+  upper: 6

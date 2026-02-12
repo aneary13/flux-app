@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Dict, List
 
 import yaml
-from simpleeval import SimpleEval
 
 from src.models import (
     ExerciseBlock,
@@ -17,53 +16,93 @@ from src.models import (
 )
 
 
+def _load_state_thresholds(config_dir: Path) -> dict:
+    """Load state_thresholds.yaml from the same directory as program_config."""
+    path = config_dir / "state_thresholds.yaml"
+    if not path.exists():
+        raise FileNotFoundError(f"State thresholds config not found: {path}")
+    with path.open() as f:
+        return yaml.safe_load(f) or {}
+
+
+def _state_from_thresholds(
+    score: int,
+    lower: int,
+    upper: int,
+    higher_is_better: bool,
+) -> str:
+    """Return RED, ORANGE, or GREEN for a single score given lower/upper thresholds.
+
+    When higher_is_better (e.g. energy): green if score > upper, orange if lower < score <= upper, red if score <= lower.
+    When lower_is_better (e.g. knee pain): green if score <= lower, orange if lower < score <= upper, red if score > upper.
+    """
+    if higher_is_better:
+        if score > upper:
+            return "GREEN"
+        if score > lower:
+            return "ORANGE"
+        return "RED"
+    else:
+        if score <= lower:
+            return "GREEN"
+        if score <= upper:
+            return "ORANGE"
+        return "RED"
+
+
+def _min_state(state_a: str, state_b: str) -> str:
+    """Return the minimum (worst) of two states: red < orange < green."""
+    order = {"RED": 0, "ORANGE": 1, "GREEN": 2}
+    return state_a if order[state_a] <= order[state_b] else state_b
+
+
 class WorkoutEngine:
     """Engine for determining the next best training session."""
 
     def __init__(self, config_path: str | Path) -> None:
-        """Initialize engine with configuration file.
+        """Initialize engine with configuration files.
 
         Args:
-            config_path: Path to program_config.yaml file
+            config_path: Path to program_config.yaml file (state_thresholds.yaml must be in same directory)
         """
         config_path = Path(config_path)
         with config_path.open() as f:
             config_data = yaml.safe_load(f)
         self.config = ProgramConfig(**config_data)
+        self._state_thresholds = _load_state_thresholds(config_path.parent)
 
     def determine_state(self, readiness: Readiness) -> str:
-        """Determine readiness state based on pain and energy levels.
+        """Determine readiness state from knee pain and energy using configurable thresholds.
 
-        Evaluates state conditions in order (RED → ORANGE → GREEN).
-        GREEN is the default catch-all if no previous states match.
+        Each score is mapped to RED/ORANGE/GREEN via its thresholds; overall state is the
+        minimum (worst) of the two (green > orange > red).
 
         Args:
-            readiness: User readiness with pain and energy levels
+            readiness: User readiness with knee_pain and energy (0-10)
 
         Returns:
             State name ("RED", "ORANGE", or "GREEN")
         """
-        # Create safe evaluator with only readiness fields
-        evaluator = SimpleEval(names={"knee_pain": readiness.knee_pain, "energy": readiness.energy})
+        ep = self._state_thresholds.get("energy", {})
+        kp = self._state_thresholds.get("knee_pain", {})
+        energy_lower = ep.get("lower", 2)
+        energy_upper = ep.get("upper", 5)
+        knee_lower = kp.get("lower", 3)
+        knee_upper = kp.get("upper", 6)
 
-        # Evaluate states in order (RED → ORANGE → GREEN)
-        for state in self.config.states:
-            if state.condition.lower() == "default":
-                # GREEN is the default catch-all
-                return state.name
-
-            try:
-                # Normalize logical operators to lowercase for simpleeval
-                condition = state.condition.replace(" OR ", " or ").replace(" AND ", " and ")
-                result = evaluator.eval(condition)
-                if result:
-                    return state.name
-            except Exception:
-                # If evaluation fails, skip to next state
-                continue
-
-        # Fallback to GREEN if somehow no state matched
-        return "GREEN"
+        energy_state = _state_from_thresholds(
+            readiness.energy,
+            energy_lower,
+            energy_upper,
+            higher_is_better=True,
+        )
+        pain_state = _state_from_thresholds(
+            readiness.knee_pain,
+            knee_lower,
+            knee_upper,
+            higher_is_better=False,
+        )
+        return _min_state(energy_state, pain_state)
 
     def calculate_pattern_debts(self, history: TrainingHistory) -> Dict[str, int]:
         """Calculate days since last occurrence for each pattern.
