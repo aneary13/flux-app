@@ -4,25 +4,14 @@ from datetime import date
 from pathlib import Path
 from typing import Dict, List
 
-import yaml
-
+from src.config import load_config
 from src.models import (
     ExerciseBlock,
     HistoryEntry,
-    ProgramConfig,
     Readiness,
     SessionPlan,
     TrainingHistory,
 )
-
-
-def _load_state_thresholds(config_dir: Path) -> dict:
-    """Load state_thresholds.yaml from the same directory as program_config."""
-    path = config_dir / "state_thresholds.yaml"
-    if not path.exists():
-        raise FileNotFoundError(f"State thresholds config not found: {path}")
-    with path.open() as f:
-        return yaml.safe_load(f) or {}
 
 
 def _state_from_thresholds(
@@ -59,20 +48,18 @@ def _min_state(state_a: str, state_b: str) -> str:
 class WorkoutEngine:
     """Engine for determining the next best training session."""
 
-    def __init__(self, config_path: str | Path) -> None:
-        """Initialize engine with configuration files.
+    def __init__(self, config_dir: str | Path) -> None:
+        """Initialize engine with modular config (library, logic, sessions, selections, conditioning).
 
         Args:
-            config_path: Path to program_config.yaml file (state_thresholds.yaml must be in same directory)
+            config_dir: Directory containing library.yaml, logic.yaml, sessions.yaml,
+                        selections.yaml, conditioning.yaml.
         """
-        config_path = Path(config_path)
-        with config_path.open() as f:
-            config_data = yaml.safe_load(f)
-        self.config = ProgramConfig(**config_data)
-        self._state_thresholds = _load_state_thresholds(config_path.parent)
+        config_dir = Path(config_dir)
+        self.config = load_config(config_dir)
 
     def determine_state(self, readiness: Readiness) -> str:
-        """Determine readiness state from knee pain and energy using configurable thresholds.
+        """Determine readiness state from knee pain and energy using config.logic.thresholds.
 
         Each score is mapped to RED/ORANGE/GREEN via its thresholds; overall state is the
         minimum (worst) of the two (green > orange > red).
@@ -83,8 +70,9 @@ class WorkoutEngine:
         Returns:
             State name ("RED", "ORANGE", or "GREEN")
         """
-        ep = self._state_thresholds.get("energy", {})
-        kp = self._state_thresholds.get("knee_pain", {})
+        th = self.config.logic.thresholds
+        ep = th.get("energy", {})
+        kp = th.get("knee_pain", {})
         energy_lower = ep.get("lower", 2)
         energy_upper = ep.get("upper", 5)
         knee_lower = kp.get("lower", 3)
@@ -134,9 +122,9 @@ class WorkoutEngine:
         # Calculate debts for all patterns in config
         debts: Dict[str, int] = {}
         all_patterns = (
-            self.config.patterns.main
-            + self.config.patterns.accessory
-            + self.config.patterns.core
+            self.config.logic.patterns.main
+            + self.config.logic.patterns.accessory
+            + self.config.logic.patterns.core
         )
 
         for pattern in all_patterns:
@@ -162,7 +150,7 @@ class WorkoutEngine:
         Returns:
             Exercise name or None if not found
         """
-        pattern_lib = self.config.library.get(pattern)
+        pattern_lib = self.config.selections.get(pattern)
         if not pattern_lib:
             return None
 
@@ -215,7 +203,7 @@ class WorkoutEngine:
             )
         
         # CORE - select core pattern with highest debt
-        core_patterns = self.config.patterns.core
+        core_patterns = self.config.logic.patterns.core
         if core_patterns:
             core_debts = {
                 pattern: pattern_debts.get(pattern, 100)
@@ -242,10 +230,10 @@ class WorkoutEngine:
 
         # Block 2: Power
         # Follow session_structure.POWER: RFD
-        power_selection_dict = self.config.power_selection.model_dump()
+        power_selection_dict = self.config.logic.power_selection.model_dump()
         rfd_type = power_selection_dict[state]
         # RFD library structure: RFD -> HIGH/LOW/UPPER -> [list of exercises]
-        rfd_lib = self.config.library.get("RFD", {})
+        rfd_lib = self.config.selections.get("RFD", {})
         rfd_exercises = rfd_lib.get(rfd_type, [])
         if isinstance(rfd_exercises, list) and rfd_exercises:
             # Add all RFD exercises for the selected type
@@ -259,12 +247,12 @@ class WorkoutEngine:
                 )
 
         # Block 3: Main Lift
-        main_patterns = self.config.patterns.main
+        main_patterns = self.config.logic.patterns.main
         # Tie-breaker: when debts are equal, use pattern_priority (Lower/Upper rotation)
         priority_index = {
-            name: idx for idx, name in enumerate(self.config.pattern_priority)
+            name: idx for idx, name in enumerate(self.config.logic.pattern_priority)
         }
-        fallback_priority = len(self.config.pattern_priority)
+        fallback_priority = len(self.config.logic.pattern_priority)
 
         def sort_key(p: str) -> tuple:
             debt = pattern_debts.get(p, 100)
@@ -299,7 +287,7 @@ class WorkoutEngine:
         # Block 4: Accessories
         # Follow session_structure.ACCESSORIES: RELATED_ACCESSORIES
         # Get required accessories from relationships (format: PATTERN:TIER)
-        required_accessories = self.config.relationships.get(
+        required_accessories = self.config.logic.relationships.get(
             selected_main_pattern, []
         )
 
@@ -346,8 +334,8 @@ class WorkoutEngine:
         """
         blocks: List[ExerciseBlock] = []
 
-        # Block 1: PREP (Mobility) – check-off items
-        for name in getattr(self.config, "mobility_exercises", []) or []:
+        # Block 1: PREP (Mobility) – check-off items from RECOVERY.mobility_flow
+        for name in self.config.sessions.RECOVERY.mobility_flow:
             blocks.append(
                 ExerciseBlock(
                     block_type="PREP",
@@ -356,13 +344,13 @@ class WorkoutEngine:
                 )
             )
 
-        # Block 2: ISOMETRICS (Repair)
-        for iso in getattr(self.config, "repair_isometrics", []) or []:
+        # Block 2: ISOMETRICS (Repair) from RECOVERY.repair_isometrics
+        for iso in self.config.sessions.RECOVERY.repair_isometrics:
             blocks.append(
                 ExerciseBlock(
                     block_type="ISOMETRICS",
                     exercise_name=iso.name,
-                    pattern=iso.category,
+                    pattern="ISOMETRIC",
                 )
             )
 

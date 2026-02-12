@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.session import get_session
 from src.engine import WorkoutEngine
 
-# Path to config file relative to backend directory
-CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "program_config.yaml"
+# Config directory containing library.yaml, logic.yaml, sessions.yaml, selections.yaml, conditioning.yaml
+CONFIG_DIR = Path(__file__).parent.parent.parent / "config"
 
 
 @functools.lru_cache(maxsize=1)
@@ -22,9 +22,9 @@ def get_engine() -> WorkoutEngine:
     Uses LRU cache to ensure YAML config is only parsed once at startup.
 
     Returns:
-        WorkoutEngine instance loaded from program_config.yaml
+        WorkoutEngine instance loaded from the modular config directory.
     """
-    return WorkoutEngine(CONFIG_PATH)
+    return WorkoutEngine(CONFIG_DIR)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

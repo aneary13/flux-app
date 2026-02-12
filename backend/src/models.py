@@ -1,75 +1,9 @@
-"""Pydantic models for FLUX configuration, input, and output."""
+"""Pydantic models for FLUX input and output (config lives in src.config)."""
 
 from datetime import date
-from typing import Dict, List
+from typing import List
 
 from pydantic import BaseModel, Field, computed_field, field_validator
-
-
-# Configuration Models (for YAML parsing)
-
-
-class PatternConfig(BaseModel):
-    """Configuration for movement patterns."""
-
-    main: List[str] = Field(description="Main movement patterns")
-    accessory: List[str] = Field(description="Accessory movement patterns")
-    core: List[str] = Field(description="Core movement patterns")
-
-
-class PowerSelectionConfig(BaseModel):
-    """Configuration for power exercise selection by state."""
-
-    GREEN: str = Field(description="Power selection for GREEN state")
-    ORANGE: str = Field(description="Power selection for ORANGE state")
-    RED: str = Field(description="Power selection for RED state")
-
-
-class SessionStructureConfig(BaseModel):
-    """Configuration for session structure."""
-
-    PREP: List[str] = Field(description="Prep block components")
-    POWER: List[str] = Field(description="Power block components")
-    STRENGTH: List[str] = Field(description="Strength block components")
-    ACCESSORIES: List[str] = Field(description="Accessories block components")
-
-
-class StateConfig(BaseModel):
-    """Configuration for a readiness state."""
-
-    name: str
-    condition: str = Field(description="Condition expression or 'default'")
-
-
-class RepairIsometricConfig(BaseModel):
-    """Single repair isometric exercise for Red Day."""
-
-    name: str
-    category: str = "ISOMETRIC"
-    settings: Dict[str, int | str] = Field(default_factory=dict)
-
-
-class ProgramConfig(BaseModel):
-    """Root configuration model for the program."""
-
-    patterns: PatternConfig
-    pattern_priority: List[str] = Field(
-        description="Default rotation for main pattern when debts are tied; first in list has highest priority."
-    )
-    relationships: Dict[str, List[str]] = Field(
-        description="Pattern relationships for accessory selection (format: PATTERN:TIER)"
-    )
-    library: Dict[str, Dict[str, Dict[str, str] | List[str]]] = Field(
-        description="Exercise library: [Pattern][Tier][State] -> exercise name, or [Pattern][Tier] -> list (for RFD)"
-    )
-    power_selection: PowerSelectionConfig
-    session_structure: SessionStructureConfig
-    states: List[StateConfig]
-    mobility_exercises: List[str] = Field(default_factory=list, description="Red Day prep: check-off mobility items")
-    repair_isometrics: List[RepairIsometricConfig] = Field(
-        default_factory=list,
-        description="Red Day: isometric repair exercises (tracked as WorkoutSet)",
-    )
 
 
 # Input Models

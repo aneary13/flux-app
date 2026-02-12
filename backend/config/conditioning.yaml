@@ -1,64 +1,54 @@
-# Gassed to Ready: SIT and HIIT have levels 1–8; SS is free-form (no levels), only when state=RED.
-# Edit this file to change protocols; then re-run the conditioning seed (API or CLI).
+equipment: "Assault Bike" 
+
 protocols:
-  # SIT (Sprint Interval Training) – short max efforts, long rest
+  # SIT (Sprint Interval Training)
   - tier: SIT
     level: 1
     description: "2 x 30s on / 60s off"
     work_duration: 30
     rest_duration: 60
     rounds: 2
-    target_modifier: null
   - tier: SIT
     level: 2
     description: "6 x 10s on / 40s off"
     work_duration: 10
     rest_duration: 40
     rounds: 6
-    target_modifier: null
   - tier: SIT
     level: 3
     description: "6 x 10s on / 40s off"
     work_duration: 10
     rest_duration: 40
     rounds: 6
-    target_modifier: null
   - tier: SIT
     level: 4
     description: "5 x 12s on / 36s off"
     work_duration: 12
     rest_duration: 36
     rounds: 5
-    target_modifier: null
   - tier: SIT
     level: 5
     description: "5 x 12s on / 36s off"
     work_duration: 12
     rest_duration: 36
     rounds: 5
-    target_modifier: null
   - tier: SIT
     level: 6
     description: "4 x 15s on / 30s off"
     work_duration: 15
     rest_duration: 30
     rounds: 4
-    target_modifier: null
   - tier: SIT
     level: 7
     description: "4 x 15s on / 30s off"
     work_duration: 15
     rest_duration: 30
     rounds: 4
-    target_modifier: null
-  # HIIT – 30s on / 30s off style
+
+  # HIIT (High Intensity)
   - tier: HIIT
     level: 1
     description: "2-Mile Time Trial (Benchmark)"
-    work_duration: null
-    rest_duration: null
-    rounds: 1
-    target_modifier: null
   - tier: HIIT
     level: 2
     description: "8 x 30s on / 30s off"
@@ -101,11 +91,8 @@ protocols:
     rest_duration: 20
     rounds: 10
     target_modifier: "BENCHMARK_1.2"
-  # SS (Steady State) – Zone 2, only when state=RED. No levels; duration by feel.
+
+  # SS (Steady State) - Red Day Only
   - tier: SS
     level: 1
-    description: "Zone 2"
-    work_duration: null
-    rest_duration: null
-    rounds: 1
-    target_modifier: null
+    description: "Zone 2 Steady State"
