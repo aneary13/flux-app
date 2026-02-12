@@ -1,9 +1,8 @@
-"""Seed reference data for FLUX (Schema 3.0). ConditioningProtocol from Gassed to Ready logic."""
+"""Seed reference data for FLUX (Schema 3.0). ConditioningProtocol loaded from config."""
 
 from __future__ import annotations
 
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -12,6 +11,7 @@ if __name__ == "__main__":
     backend = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(backend))
 
+import yaml
 from dotenv import load_dotenv
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,30 +21,27 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 from src.db.models import ConditioningProtocol
 from src.db.session import get_engine, get_session
 
+CONDITIONING_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "conditioning_config.yaml"
 
-# Gassed to Ready: SIT and HIIT have levels 1–8; SS is free-form (no levels), only when state=RED.
-CONDITIONING_PROTOCOLS = [
-    # SIT (Sprint Interval Training) – short max efforts, long rest
-    {"tier": "SIT", "level": 1, "description": "4 x 10s max / 90s rest", "work_duration": 10, "rest_duration": 90, "rounds": 4, "target_modifier": None},
-    {"tier": "SIT", "level": 2, "description": "5 x 10s max / 90s rest", "work_duration": 10, "rest_duration": 90, "rounds": 5, "target_modifier": None},
-    {"tier": "SIT", "level": 3, "description": "6 x 10s max / 90s rest", "work_duration": 10, "rest_duration": 90, "rounds": 6, "target_modifier": None},
-    {"tier": "SIT", "level": 4, "description": "6 x 15s max / 2 min rest", "work_duration": 15, "rest_duration": 120, "rounds": 6, "target_modifier": None},
-    {"tier": "SIT", "level": 5, "description": "7 x 15s max / 2 min rest", "work_duration": 15, "rest_duration": 120, "rounds": 7, "target_modifier": None},
-    {"tier": "SIT", "level": 6, "description": "8 x 15s max / 2 min rest", "work_duration": 15, "rest_duration": 120, "rounds": 8, "target_modifier": None},
-    {"tier": "SIT", "level": 7, "description": "6 x 20s max / 2 min rest", "work_duration": 20, "rest_duration": 120, "rounds": 6, "target_modifier": None},
-    {"tier": "SIT", "level": 8, "description": "8 x 20s max / 2 min rest", "work_duration": 20, "rest_duration": 120, "rounds": 8, "target_modifier": None},
-    # HIIT – 30s on / 30s off style
-    {"tier": "HIIT", "level": 1, "description": "6 x 30s on / 30s off", "work_duration": 30, "rest_duration": 30, "rounds": 6, "target_modifier": None},
-    {"tier": "HIIT", "level": 2, "description": "8 x 30s on / 30s off", "work_duration": 30, "rest_duration": 30, "rounds": 8, "target_modifier": "BENCHMARK_1.2"},
-    {"tier": "HIIT", "level": 3, "description": "10 x 30s on / 30s off", "work_duration": 30, "rest_duration": 30, "rounds": 10, "target_modifier": "BENCHMARK_1.2"},
-    {"tier": "HIIT", "level": 4, "description": "8 x 45s on / 45s off", "work_duration": 45, "rest_duration": 45, "rounds": 8, "target_modifier": "BENCHMARK_1.2"},
-    {"tier": "HIIT", "level": 5, "description": "10 x 45s on / 45s off", "work_duration": 45, "rest_duration": 45, "rounds": 10, "target_modifier": "BENCHMARK_1.2"},
-    {"tier": "HIIT", "level": 6, "description": "8 x 60s on / 60s off", "work_duration": 60, "rest_duration": 60, "rounds": 8, "target_modifier": "BENCHMARK_1.2"},
-    {"tier": "HIIT", "level": 7, "description": "10 x 60s on / 60s off", "work_duration": 60, "rest_duration": 60, "rounds": 10, "target_modifier": "BENCHMARK_1.2"},
-    {"tier": "HIIT", "level": 8, "description": "12 x 60s on / 60s off", "work_duration": 60, "rest_duration": 60, "rounds": 12, "target_modifier": "BENCHMARK_1.2"},
-    # SS (Steady State) – Zone 2, only when state=RED. No levels; duration by feel. Record kept for display (e.g. "last SS 10 days ago, 20 min, 130 avg HR" from session/set data).
-    {"tier": "SS", "level": 1, "description": "Zone 2 – duration by feel (e.g. 20 min)", "work_duration": None, "rest_duration": None, "rounds": 1, "target_modifier": None},
-]
+
+def load_conditioning_protocols() -> list[dict]:
+    """Load protocol definitions from conditioning_config.yaml."""
+    with CONDITIONING_CONFIG_PATH.open() as f:
+        data = yaml.safe_load(f)
+    protocols = data.get("protocols") or []
+    # Normalize null target_modifier / optional fields for SQLModel
+    return [
+        {
+            "tier": p["tier"],
+            "level": p["level"],
+            "description": p["description"],
+            "work_duration": p.get("work_duration"),
+            "rest_duration": p.get("rest_duration"),
+            "rounds": p.get("rounds", 1),
+            "target_modifier": p.get("target_modifier"),
+        }
+        for p in protocols
+    ]
 
 
 async def seed_conditioning_protocols(db: AsyncSession, replace: bool = False) -> int:
@@ -56,8 +53,9 @@ async def seed_conditioning_protocols(db: AsyncSession, replace: bool = False) -
         existing = await db.execute(select(ConditioningProtocol).limit(1))
         if existing.scalar_one_or_none() is not None:
             return 0
+    protocols = load_conditioning_protocols()
     count = 0
-    for row in CONDITIONING_PROTOCOLS:
+    for row in protocols:
         proto = ConditioningProtocol(**row)
         db.add(proto)
         count += 1

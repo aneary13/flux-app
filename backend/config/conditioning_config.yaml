@@ -1,0 +1,125 @@
+# Gassed to Ready: SIT and HIIT have levels 1–8; SS is free-form (no levels), only when state=RED.
+# Edit this file to change protocols; then re-run the conditioning seed (API or CLI).
+protocols:
+  # SIT (Sprint Interval Training) – short max efforts, long rest
+  - tier: SIT
+    level: 1
+    description: "4 x 10s max / 90s rest"
+    work_duration: 10
+    rest_duration: 90
+    rounds: 4
+    target_modifier: null
+  - tier: SIT
+    level: 2
+    description: "5 x 10s max / 90s rest"
+    work_duration: 10
+    rest_duration: 90
+    rounds: 5
+    target_modifier: null
+  - tier: SIT
+    level: 3
+    description: "6 x 10s max / 90s rest"
+    work_duration: 10
+    rest_duration: 90
+    rounds: 6
+    target_modifier: null
+  - tier: SIT
+    level: 4
+    description: "6 x 15s max / 2 min rest"
+    work_duration: 15
+    rest_duration: 120
+    rounds: 6
+    target_modifier: null
+  - tier: SIT
+    level: 5
+    description: "7 x 15s max / 2 min rest"
+    work_duration: 15
+    rest_duration: 120
+    rounds: 7
+    target_modifier: null
+  - tier: SIT
+    level: 6
+    description: "8 x 15s max / 2 min rest"
+    work_duration: 15
+    rest_duration: 120
+    rounds: 8
+    target_modifier: null
+  - tier: SIT
+    level: 7
+    description: "6 x 20s max / 2 min rest"
+    work_duration: 20
+    rest_duration: 120
+    rounds: 6
+    target_modifier: null
+  - tier: SIT
+    level: 8
+    description: "8 x 20s max / 2 min rest"
+    work_duration: 20
+    rest_duration: 120
+    rounds: 8
+    target_modifier: null
+  # HIIT – 30s on / 30s off style
+  - tier: HIIT
+    level: 1
+    description: "6 x 30s on / 30s off"
+    work_duration: 30
+    rest_duration: 30
+    rounds: 6
+    target_modifier: null
+  - tier: HIIT
+    level: 2
+    description: "8 x 30s on / 30s off"
+    work_duration: 30
+    rest_duration: 30
+    rounds: 8
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 3
+    description: "10 x 30s on / 30s off"
+    work_duration: 30
+    rest_duration: 30
+    rounds: 10
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 4
+    description: "8 x 45s on / 45s off"
+    work_duration: 45
+    rest_duration: 45
+    rounds: 8
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 5
+    description: "10 x 45s on / 45s off"
+    work_duration: 45
+    rest_duration: 45
+    rounds: 10
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 6
+    description: "8 x 60s on / 60s off"
+    work_duration: 60
+    rest_duration: 60
+    rounds: 8
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 7
+    description: "10 x 60s on / 60s off"
+    work_duration: 60
+    rest_duration: 60
+    rounds: 10
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 8
+    description: "12 x 60s on / 60s off"
+    work_duration: 60
+    rest_duration: 60
+    rounds: 12
+    target_modifier: "BENCHMARK_1.2"
+  # SS (Steady State) – Zone 2, only when state=RED. No levels; duration by feel.
+  - tier: SS
+    level: 1
+    description: "Zone 2 – duration by feel (e.g. 20 min)"
+    work_duration: null
+    rest_duration: null
+    rounds: 1
+    target_modifier: null
