@@ -386,7 +386,7 @@ class WorkoutEngine:
         blocks.append(
             ExerciseBlock(
                 block_type="CONDITIONING",
-                exercise_name="Zone 2 / Steady State — Self-guided duration. Keep heart rate low.",
+                exercise_name="Zone 2 / Steady State",
                 pattern="CONDITIONING:SS",
             )
         )

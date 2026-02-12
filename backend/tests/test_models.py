@@ -1,4 +1,4 @@
-"""Tests for Pydantic models."""
+"""Tests for Pydantic models (input/output and config)."""
 
 import pytest
 from pydantic import ValidationError
@@ -6,12 +6,8 @@ from pydantic import ValidationError
 from src.models import (
     ExerciseBlock,
     HistoryEntry,
-    PatternConfig,
-    PowerSelectionConfig,
-    ProgramConfig,
     Readiness,
     SessionPlan,
-    StateConfig,
     TrainingHistory,
 )
 
@@ -70,71 +66,46 @@ class TestTrainingHistory:
 
 
 class TestConfigModels:
-    """Tests for configuration models."""
+    """Tests for modular config (src.config)."""
 
-    def test_pattern_config(self) -> None:
-        """Test PatternConfig validation."""
-        patterns = PatternConfig(
+    def test_logic_config_patterns(self) -> None:
+        """Test LogicConfig.PatternsConfig."""
+        from src.config import LogicConfig, PatternsConfig
+
+        patterns = PatternsConfig(
             main=["SQUAT", "HINGE"],
             accessory=["LUNGE"],
             core=["CORE"],
         )
-        assert len(patterns.main) == 2
-        assert len(patterns.accessory) == 1
-        assert len(patterns.core) == 1
+        assert patterns.main == ["SQUAT", "HINGE"]
+        assert patterns.accessory == ["LUNGE"]
+        assert patterns.core == ["CORE"]
 
-    def test_power_selection_config(self) -> None:
-        """Test PowerSelectionConfig validation."""
-        power_selection = PowerSelectionConfig(
-            GREEN="HIGH", ORANGE="LOW", RED="UPPER"
-        )
-        assert power_selection.GREEN == "HIGH"
-        assert power_selection.ORANGE == "LOW"
-        assert power_selection.RED == "UPPER"
+    def test_logic_config_power_selection(self) -> None:
+        """Test LogicConfig.PowerSelectionConfig."""
+        from src.config import PowerSelectionConfig
 
-    def test_state_config(self) -> None:
-        """Test StateConfig validation."""
-        state = StateConfig(name="RED", condition="knee_pain >= 6")
-        assert state.name == "RED"
-        assert state.condition == "knee_pain >= 6"
+        ps = PowerSelectionConfig(GREEN="HIGH", ORANGE="LOW", RED="UPPER")
+        assert ps.GREEN == "HIGH"
+        assert ps.ORANGE == "LOW"
+        assert ps.RED == "UPPER"
 
-    def test_program_config(self) -> None:
-        """Test ProgramConfig with all components."""
-        from src.models import SessionStructureConfig
+    def test_load_config(self) -> None:
+        """Test load_config returns ProgramConfig with library, logic, sessions, selections, conditioning."""
+        from pathlib import Path
 
-        patterns = PatternConfig(
-            main=["SQUAT", "HINGE"],
-            accessory=["LUNGE"],
-            core=["CORE"],
-        )
-        power_selection = PowerSelectionConfig(
-            GREEN="HIGH", ORANGE="LOW", RED="UPPER"
-        )
-        session_structure = SessionStructureConfig(
-            PREP=["WARM_UP", "PATELLAR_ISO", "CORE"],
-            POWER=["RFD"],
-            STRENGTH=["MAIN_PATTERN"],
-            ACCESSORIES=["RELATED_ACCESSORIES"],
-        )
-        state = StateConfig(name="RED", condition="knee_pain >= 6")
+        from src.config import load_config
 
-        config = ProgramConfig(
-            patterns=patterns,
-            pattern_priority=["SQUAT", "PUSH", "HINGE", "PULL"],
-            relationships={"SQUAT": ["PULL:ACCESSORY_HORIZONTAL"]},
-            library={
-                "SQUAT": {
-                    "MAIN": {"GREEN": "Back Squat", "ORANGE": "Tempo Goblet Squat", "RED": "SKIP"}
-                }
-            },
-            power_selection=power_selection,
-            session_structure=session_structure,
-            states=[state],
-        )
-        assert len(config.states) == 1
-        assert config.patterns.main == ["SQUAT", "HINGE"]
-        assert config.power_selection.GREEN == "HIGH"
-        assert config.session_structure.PREP == ["WARM_UP", "PATELLAR_ISO", "CORE"]
+        # Use repo config dir
+        config_dir = Path(__file__).resolve().parent.parent / "config"
+        config = load_config(config_dir)
+        assert config.logic.pattern_priority
+        assert config.logic.patterns.main
+        assert config.selections
+        assert hasattr(config.sessions, "GYM")
+        assert hasattr(config.sessions, "RECOVERY")
+        assert config.library.catalog is not None
+        assert config.conditioning.protocols is not None
 
 
 class TestSessionPlan:

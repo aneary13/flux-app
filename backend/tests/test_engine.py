@@ -1,6 +1,7 @@
 """Tests for WorkoutEngine logic."""
 
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -8,29 +9,30 @@ from src.engine import WorkoutEngine
 from src.models import HistoryEntry, Readiness, TrainingHistory
 
 
-@pytest.fixture
-def config_path(tmp_path):
-    """Create a temporary config file for testing v2.0 structure."""
-    config_file = tmp_path / "program_config.yaml"
-    config_file.write_text(
+def _write_modular_config(
+    tmp_path: Path,
+    selections_yaml: str,
+    logic_thresholds: str = """
+  energy:
+    lower: -1
+    upper: 4
+  knee_pain:
+    lower: 2
+    upper: 5
+""",
+) -> None:
+    """Write the 5 modular config files into tmp_path for engine tests."""
+    (tmp_path / "logic.yaml").write_text(
         """
 patterns:
-  main:
-    - SQUAT
-    - HINGE
-    - PUSH
-    - PULL
-  accessory:
-    - LUNGE
-  core:
-    - CORE
-
-pattern_priority:
-  - SQUAT
-  - PUSH
-  - HINGE
-  - PULL
-
+  main: [SQUAT, HINGE, PUSH, PULL]
+  accessory: [LUNGE]
+  core: [CORE]
+pattern_priority: [SQUAT, PUSH, HINGE, PULL]
+power_selection:
+  GREEN: "HIGH"
+  ORANGE: "LOW"
+  RED: "UPPER"
 relationships:
   SQUAT:
     - PULL:ACCESSORY_HORIZONTAL
@@ -44,120 +46,133 @@ relationships:
   PULL:
     - HINGE:ACCESSORY_KNEE
     - PUSH:ACCESSORY_VERTICAL
-
-library:
-  SQUAT:
-    MAIN:
-      GREEN: "Back Squat"
-      ORANGE: "Tempo Goblet Squat"
-      RED: "SKIP"
-    ACCESSORY:
-      GREEN: "Goblet Squat"
-      ORANGE: "Bodyweight Squat"
-      RED: "Wall Sit"
-  HINGE:
-    MAIN:
-      GREEN: "Romanian Deadlift"
-      ORANGE: "Tempo Romanian Deadlift"
-      RED: "SKIP"
-    ACCESSORY_HIP:
-      GREEN: "Romanian Deadlift"
-      ORANGE: "Good Morning"
-      RED: "Glute Bridge"
-    ACCESSORY_KNEE:
-      GREEN: "Leg Curl"
-      ORANGE: "Nordic Curl"
-      RED: "Glute Bridge"
-  PUSH:
-    MAIN:
-      GREEN: "Bench Press"
-      ORANGE: "Dumbbell Press"
-      RED: "Push-ups"
-    ACCESSORY_VERTICAL:
-      GREEN: "Overhead Press"
-      ORANGE: "Dumbbell Press"
-      RED: "Wall Slides"
-    ACCESSORY_HORIZONTAL:
-      GREEN: "Dumbbell Fly"
-      ORANGE: "Push-ups"
-      RED: "Wall Slides"
-  PULL:
-    MAIN:
-      GREEN: "Barbell Row"
-      ORANGE: "Cable Row"
-      RED: "Band Row"
-    ACCESSORY_VERTICAL:
-      GREEN: "Pull-ups"
-      ORANGE: "Lat Pulldown"
-      RED: "Band Row"
-    ACCESSORY_HORIZONTAL:
-      GREEN: "Cable Row"
-      ORANGE: "Dumbbell Row"
-      RED: "Band Row"
-  LUNGE:
-    ACCESSORY:
-      GREEN: "Walking Lunge"
-      ORANGE: "Reverse Lunge"
-      RED: "SKIP"
-  CORE:
-    TRANSVERSE:
-      GREEN: "Pallof Press"
-      ORANGE: "Band Anti-Rotation"
-      RED: "Dead Bug"
-    SAGITTAL:
-      GREEN: "Dead Bug"
-      ORANGE: "Bird Dog"
-      RED: "Cat-Cow"
-    FRONTAL:
-      GREEN: "Side Plank"
-      ORANGE: "Band Anti-Lateral"
-      RED: "Dead Bug"
-  PATELLAR_ISO:
-    PREP:
-      GREEN: "Patellar Isometric"
-      ORANGE: "Patellar Isometric"
-      RED: "Patellar Isometric"
-  RFD:
-    HIGH:
-      - "Depth Jumps"
-      - "Sprints"
-      - "Box Jumps"
-    LOW:
-      - "Broad Jumps"
-      - "Medicine Ball Throws"
-      - "Kettlebell Swings"
-    UPPER:
-      - "Medicine Ball Slams"
-      - "Band Pull-apart"
-      - "Shoulder Circles"
-
-power_selection:
-  GREEN: "HIGH"
-  ORANGE: "LOW"
-  RED: "UPPER"
-
-session_structure:
-  PREP:
-    - WARM_UP
-    - PATELLAR_ISO
-    - CORE
-  POWER:
-    - RFD
-  STRENGTH:
-    - MAIN_PATTERN
-  ACCESSORIES:
-    - RELATED_ACCESSORIES
-
-states:
-  - name: "RED"
-    condition: "knee_pain >= 6"
-  - name: "ORANGE"
-    condition: "(knee_pain >= 3) OR (energy <= 3)"
-  - name: "GREEN"
-    condition: "default"
+thresholds:
+"""
+        + logic_thresholds
+    )
+    (tmp_path / "selections.yaml").write_text(selections_yaml)
+    (tmp_path / "sessions.yaml").write_text(
+        """
+GYM:
+  structure:
+    - block: PREP
+      components: [MOBILITY, PATELLAR_ISO, CORE]
+    - block: POWER
+      components: [RFD]
+    - block: STRENGTH
+      components: [MAIN_PATTERN]
+    - block: ACCESSORIES
+      components: [RELATED_ACCESSORIES]
+RECOVERY:
+  structure: []
+  mobility_flow:
+    - "Cat Cow"
+    - "World's Greatest Stretch"
+  repair_isometrics:
+    - name: "SL Knee Extension Iso"
+      settings: { sets: 3, duration_seconds: 45 }
+    - name: "SL Foam Roller Hamstring Iso"
+      settings: { sets: 3, duration_seconds: 45 }
 """
     )
-    return str(config_file)
+    (tmp_path / "library.yaml").write_text("catalog: []")
+    (tmp_path / "conditioning.yaml").write_text("equipment: ''\nprotocols: []")
+    return None
+
+
+SELECTIONS_YAML = """
+SQUAT:
+  MAIN:
+    GREEN: "Back Squat"
+    ORANGE: "Tempo Goblet Squat"
+    RED: "SKIP"
+  ACCESSORY:
+    GREEN: "Goblet Squat"
+    ORANGE: "Bodyweight Squat"
+    RED: "Wall Sit"
+HINGE:
+  MAIN:
+    GREEN: "Romanian Deadlift"
+    ORANGE: "Tempo Romanian Deadlift"
+    RED: "SKIP"
+  ACCESSORY_HIP:
+    GREEN: "Romanian Deadlift"
+    ORANGE: "Good Morning"
+    RED: "Glute Bridge"
+  ACCESSORY_KNEE:
+    GREEN: "Leg Curl"
+    ORANGE: "Nordic Curl"
+    RED: "Glute Bridge"
+PUSH:
+  MAIN:
+    GREEN: "Bench Press"
+    ORANGE: "Dumbbell Press"
+    RED: "Push-ups"
+  ACCESSORY_VERTICAL:
+    GREEN: "Overhead Press"
+    ORANGE: "Dumbbell Press"
+    RED: "Wall Slides"
+  ACCESSORY_HORIZONTAL:
+    GREEN: "Dumbbell Fly"
+    ORANGE: "Push-ups"
+    RED: "Wall Slides"
+PULL:
+  MAIN:
+    GREEN: "Barbell Row"
+    ORANGE: "Cable Row"
+    RED: "Band Row"
+  ACCESSORY_VERTICAL:
+    GREEN: "Pull-ups"
+    ORANGE: "Lat Pulldown"
+    RED: "Band Row"
+  ACCESSORY_HORIZONTAL:
+    GREEN: "Cable Row"
+    ORANGE: "Dumbbell Row"
+    RED: "Band Row"
+LUNGE:
+  ACCESSORY:
+    GREEN: "Walking Lunge"
+    ORANGE: "Reverse Lunge"
+    RED: "SKIP"
+CORE:
+  TRANSVERSE:
+    GREEN: "Pallof Press"
+    ORANGE: "Band Anti-Rotation"
+    RED: "Dead Bug"
+  SAGITTAL:
+    GREEN: "Dead Bug"
+    ORANGE: "Bird Dog"
+    RED: "Cat-Cow"
+  FRONTAL:
+    GREEN: "Side Plank"
+    ORANGE: "Band Anti-Lateral"
+    RED: "Dead Bug"
+PATELLAR_ISO:
+  PREP:
+    GREEN: "Patellar Isometric"
+    ORANGE: "Patellar Isometric"
+    RED: "Patellar Isometric"
+RFD:
+  HIGH:
+    - "Depth Jumps"
+    - "Sprints"
+    - "Box Jumps"
+  LOW:
+    - "Broad Jumps"
+    - "Medicine Ball Throws"
+    - "Kettlebell Swings"
+  UPPER:
+    - "Medicine Ball Slams"
+    - "Band Pull-apart"
+    - "Shoulder Circles"
+"""
+
+
+@pytest.fixture
+def config_path(tmp_path):
+    """Create modular config directory (logic, selections, sessions, library, conditioning) for testing."""
+    _write_modular_config(tmp_path, SELECTIONS_YAML)
+    return str(tmp_path)
 
 
 @pytest.fixture
@@ -294,20 +309,19 @@ class TestSessionGeneration:
         assert "MAIN" in block_types
         assert "PREP" in block_types
 
-    def test_generate_session_rest_on_low_energy(self, engine: WorkoutEngine) -> None:
-        """Test that REST session is returned when energy is low."""
+    def test_generate_session_low_energy_still_returns_gym(self, engine: WorkoutEngine) -> None:
+        """Low energy (ORANGE) still gets a GYM session; engine does not return REST."""
         history = TrainingHistory()
         readiness = Readiness(knee_pain=2, energy=3)  # Low energy, ORANGE state
 
         plan = engine.generate_session(readiness, history)
 
-        assert plan.session_type == "REST"
-        assert len(plan.blocks) == 0
+        assert plan.session_type == "GYM"
+        assert len(plan.blocks) > 0
 
-    def test_generate_session_red_state_skips_patterns(self, engine: WorkoutEngine) -> None:
-        """Test that RED state skips patterns that are marked SKIP."""
+    def test_generate_session_red_state_returns_red_day(self, engine: WorkoutEngine) -> None:
+        """RED state returns a Red Day session (mobility, isometrics, accessories, conditioning)."""
         today = date.today()
-        # SQUAT has highest debt but SKIPs in RED
         history = TrainingHistory(
             entries=[
                 HistoryEntry(
@@ -322,14 +336,16 @@ class TestSessionGeneration:
         )
         readiness = Readiness(knee_pain=7, energy=6)  # RED state
 
-        plan = engine.generate_session(readiness, history)
+        plan = engine.generate_session(readiness, history, last_push_plane=None)
 
         assert plan.session_type == "GYM"
-        # Should select PUSH (not SQUAT which is SKIP in RED)
-        main_blocks = [b for b in plan.blocks if b.block_type == "MAIN"]
-        assert len(main_blocks) == 1
-        assert main_blocks[0].pattern != "SQUAT"  # SQUAT should be skipped
-        assert main_blocks[0].pattern in ["PUSH", "PULL", "HINGE"]  # Valid patterns
+        # Red Day: no MAIN block; has CONDITIONING
+        block_types = [b.block_type for b in plan.blocks]
+        assert "MAIN" not in block_types
+        assert "CONDITIONING" in block_types
+        conditioning = [b for b in plan.blocks if b.block_type == "CONDITIONING"]
+        assert len(conditioning) == 1
+        assert "Zone 2" in conditioning[0].exercise_name or "Steady State" in conditioning[0].exercise_name
 
     def test_generate_session_with_no_history(self, engine: WorkoutEngine) -> None:
         """Test session generation with no history (all patterns have default debt)."""
@@ -347,154 +363,9 @@ class TestSessionGeneration:
 
 @pytest.fixture
 def new_config_path(tmp_path):
-    """Create a temporary config file for testing new v2.0 structure."""
-    config_file = tmp_path / "program_config_v2.yaml"
-    config_file.write_text(
-        """
-patterns:
-  main:
-    - SQUAT
-    - HINGE
-    - PUSH
-    - PULL
-  accessory:
-    - LUNGE
-  core:
-    - CORE
-
-pattern_priority:
-  - SQUAT
-  - PUSH
-  - HINGE
-  - PULL
-
-relationships:
-  SQUAT:
-    - PULL:ACCESSORY_HORIZONTAL
-    - HINGE:ACCESSORY_HIP
-  PUSH:
-    - SQUAT:ACCESSORY
-    - PULL:ACCESSORY_VERTICAL
-  HINGE:
-    - PUSH:ACCESSORY_HORIZONTAL
-    - LUNGE:ACCESSORY
-  PULL:
-    - HINGE:ACCESSORY_KNEE
-    - PUSH:ACCESSORY_VERTICAL
-
-library:
-  SQUAT:
-    MAIN:
-      GREEN: "Back Squat"
-      ORANGE: "Tempo Goblet Squat"
-      RED: "SKIP"
-    ACCESSORY:
-      GREEN: "Goblet Squat"
-      ORANGE: "Bodyweight Squat"
-      RED: "Wall Sit"
-  HINGE:
-    MAIN:
-      GREEN: "Romanian Deadlift"
-      ORANGE: "Tempo Romanian Deadlift"
-      RED: "SKIP"
-    ACCESSORY_HIP:
-      GREEN: "Romanian Deadlift"
-      ORANGE: "Good Morning"
-      RED: "Glute Bridge"
-    ACCESSORY_KNEE:
-      GREEN: "Leg Curl"
-      ORANGE: "Nordic Curl"
-      RED: "Glute Bridge"
-  PUSH:
-    MAIN:
-      GREEN: "Bench Press"
-      ORANGE: "Dumbbell Press"
-      RED: "Push-ups"
-    ACCESSORY_VERTICAL:
-      GREEN: "Overhead Press"
-      ORANGE: "Dumbbell Press"
-      RED: "Wall Slides"
-    ACCESSORY_HORIZONTAL:
-      GREEN: "Dumbbell Fly"
-      ORANGE: "Push-ups"
-      RED: "Wall Slides"
-  PULL:
-    MAIN:
-      GREEN: "Barbell Row"
-      ORANGE: "Cable Row"
-      RED: "Band Row"
-    ACCESSORY_VERTICAL:
-      GREEN: "Pull-ups"
-      ORANGE: "Lat Pulldown"
-      RED: "Band Row"
-    ACCESSORY_HORIZONTAL:
-      GREEN: "Cable Row"
-      ORANGE: "Dumbbell Row"
-      RED: "Band Row"
-  LUNGE:
-    ACCESSORY:
-      GREEN: "Walking Lunge"
-      ORANGE: "Reverse Lunge"
-      RED: "SKIP"
-  CORE:
-    TRANSVERSE:
-      GREEN: "Pallof Press"
-      ORANGE: "Band Anti-Rotation"
-      RED: "Dead Bug"
-    SAGITTAL:
-      GREEN: "Dead Bug"
-      ORANGE: "Bird Dog"
-      RED: "Cat-Cow"
-    FRONTAL:
-      GREEN: "Side Plank"
-      ORANGE: "Band Anti-Lateral"
-      RED: "Dead Bug"
-  PATELLAR_ISO:
-    PREP:
-      GREEN: "Patellar Isometric"
-      ORANGE: "Patellar Isometric"
-      RED: "Patellar Isometric"
-  RFD:
-    HIGH:
-      - "Depth Jumps"
-      - "Sprints"
-      - "Box Jumps"
-    LOW:
-      - "Broad Jumps"
-      - "Medicine Ball Throws"
-      - "Kettlebell Swings"
-    UPPER:
-      - "Medicine Ball Slams"
-      - "Band Pull-apart"
-      - "Shoulder Circles"
-
-power_selection:
-  GREEN: "HIGH"
-  ORANGE: "LOW"
-  RED: "UPPER"
-
-session_structure:
-  PREP:
-    - WARM_UP
-    - PATELLAR_ISO
-    - CORE
-  POWER:
-    - RFD
-  STRENGTH:
-    - MAIN_PATTERN
-  ACCESSORIES:
-    - RELATED_ACCESSORIES
-
-states:
-  - name: "RED"
-    condition: "knee_pain >= 6"
-  - name: "ORANGE"
-    condition: "(knee_pain >= 3) OR (energy <= 3)"
-  - name: "GREEN"
-    condition: "default"
-"""
-    )
-    return str(config_file)
+    """Create modular config directory for tests that use new_engine (same as config_path)."""
+    _write_modular_config(tmp_path, SELECTIONS_YAML)
+    return str(tmp_path)
 
 
 @pytest.fixture
