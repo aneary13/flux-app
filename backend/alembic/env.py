@@ -13,9 +13,13 @@ load_dotenv()
 
 # Import all models to ensure they are registered with SQLModel.metadata
 from src.db.models import (  # noqa: E402, F401
+    ConditioningBenchmark,
+    ConditioningProgress,
+    ConditioningProtocol,
     DailyReadiness,
     Exercise,
-    PatternInventory,
+    PatternHistory,
+    User,
     WorkoutSession,
     WorkoutSet,
 )

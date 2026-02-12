@@ -1,9 +1,8 @@
-"""WorkoutEngine - Core logic for determining next best action."""
+"""WorkoutEngine - Core logic for determining next best action (Session Builder: GYM + Conditioning)."""
 
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
-from typing import Dict, List, Tuple
-import random
+from typing import Dict, List
 
 import yaml
 from simpleeval import SimpleEval
@@ -110,51 +109,6 @@ class WorkoutEngine:
                 debts[pattern] = 100
 
         return debts
-
-    def _calculate_gym_debt(self, pattern_debts: Dict[str, int]) -> int:
-        """Calculate gym debt as sum of main pattern debts.
-
-        Args:
-            pattern_debts: Dictionary of pattern debts
-
-        Returns:
-            Sum of debts for main patterns
-        """
-        return sum(pattern_debts.get(pattern, 0) for pattern in self.config.patterns.main)
-
-    def _calculate_cond_debt(self, pattern_debts: Dict[str, int]) -> int:
-        """Calculate conditioning debt (placeholder for future implementation).
-
-        Args:
-            pattern_debts: Dictionary of pattern debts
-
-        Returns:
-            Placeholder value (0 for now)
-        """
-        # TODO: Implement conditioning debt calculation in future phase
-        return 0
-
-    def select_session_type(
-        self, energy: int, gym_debt: int, cond_debt: int
-    ) -> str:
-        """Select session type based on energy and debt levels (Level 1 logic).
-
-        Args:
-            energy: User energy level (0-10)
-            gym_debt: Calculated gym debt
-            cond_debt: Calculated conditioning debt
-
-        Returns:
-            Session type: "REST", "GYM", or "CONDITIONING"
-        """
-        if energy < 5:
-            return "REST"
-
-        if gym_debt > cond_debt and energy >= 5:
-            return "GYM"
-
-        # Default to CONDITIONING (deferred for this phase)
-        return "CONDITIONING"
 
     def _get_exercise_from_library(
         self, pattern: str, tier: str, state: str
@@ -337,37 +291,21 @@ class WorkoutEngine:
     def generate_session(
         self, readiness: Readiness, history: TrainingHistory
     ) -> SessionPlan:
-        """Generate the recommended session plan using new composition logic.
+        """Generate the recommended session plan (lifting blocks only).
+
+        Every request is a GYM session. Returns Prep + Power + Main + Accessories
+        only; the conditioning block is appended by the route via the conditioning
+        service (Option II: Service Composition).
 
         Args:
             readiness: User readiness with pain and energy levels
             history: User training history
 
         Returns:
-            SessionPlan with recommended session details
+            SessionPlan with session_type="GYM" and lifting blocks only
 
         Raises:
-            ValueError: If no valid session is found
-            NotImplementedError: If CONDITIONING session type is selected
+            ValueError: If no valid main lift is available
         """
-        # Calculate pattern debts (handles None/empty gracefully)
         pattern_debts = self.calculate_pattern_debts(history)
-
-        # Calculate gym and conditioning debts
-        gym_debt = self._calculate_gym_debt(pattern_debts)
-        cond_debt = self._calculate_cond_debt(pattern_debts)
-
-        # Select session type (Level 1 logic)
-        session_type = self.select_session_type(
-            readiness.energy, gym_debt, cond_debt
-        )
-
-        # Compose session based on type
-        if session_type == "REST":
-            return SessionPlan(session_type="REST", blocks=[])
-        elif session_type == "GYM":
-            return self.compose_gym_session(readiness, pattern_debts)
-        elif session_type == "CONDITIONING":
-            raise NotImplementedError("Conditioning sessions not yet implemented")
-        else:
-            raise ValueError(f"Unknown session type: {session_type}")
+        return self.compose_gym_session(readiness, pattern_debts)
