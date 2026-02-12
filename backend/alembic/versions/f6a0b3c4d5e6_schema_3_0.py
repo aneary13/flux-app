@@ -104,7 +104,7 @@ def upgrade() -> None:
         "computed_state",
         server_default=None,
     )
-    op.rename_column("workoutsession", "notes", "session_notes")
+    op.alter_column("workoutsession", "notes", new_column_name="session_notes")
 
     # ----- Alter workoutset: add new columns and nullable exercise_id -----
     op.add_column("workoutset", sa.Column("exercise_id", sa.Integer(), nullable=True))
@@ -197,7 +197,7 @@ def downgrade() -> None:
     op.drop_column("workoutset", "work_seconds")
     op.drop_column("workoutset", "distance_meters")
 
-    op.rename_column("workoutsession", "session_notes", "notes")
+    op.alter_column("workoutsession", "session_notes", new_column_name="notes")
     op.drop_column("workoutsession", "computed_state")
 
     op.drop_constraint("uq_pattern_history_user_pattern", "patternhistory", type_="unique")
