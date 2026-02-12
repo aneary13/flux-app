@@ -1,0 +1,40 @@
+# Session Archetypes
+
+GYM:
+  # Triggered when State is GREEN or ORANGE
+  structure:
+    - block: PREP
+      components: [MOBILITY, PATELLAR_ISO, CORE]
+    - block: POWER
+      components: [RFD]
+    - block: STRENGTH
+      components: [MAIN_PATTERN]
+    - block: ACCESSORIES
+      components: [RELATED_ACCESSORIES]
+    - block: CONDITIONING
+      components: [PROTOCOL]
+
+RECOVERY:
+  # Triggered when State is RED
+  structure:
+    - block: MOBILITY
+      components: [MOBILITY_FLOW]
+    - block: ISOMETRICS
+      components: [REPAIR_ISO]
+    - block: ACCESSORIES
+      components: [UPPER_PUSH, UPPER_PULL]
+    - block: CONDITIONING
+      components: [STEADY_STATE]
+  
+  # Specific Settings for Red Day Components
+  mobility_flow:
+    - "Cat Cow"
+    - "World's Greatest Stretch"
+    - "90/90 Hip Switch"
+    - "Adductor Rock"
+
+  repair_isometrics:
+    - name: "SL Knee Extension Iso"
+      settings: { sets: 3, duration_seconds: 45 }
+    - name: "SL Foam Roller Hamstring Iso"
+      settings: { sets: 3, duration_seconds: 45 }

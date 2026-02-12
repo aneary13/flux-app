@@ -1,70 +1,96 @@
-"""WorkoutEngine - Core logic for determining next best action."""
+"""WorkoutEngine - Core logic for determining next best action (Session Builder: GYM + Conditioning)."""
 
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
-from typing import Dict, List, Tuple
-import random
+from typing import Dict, List
 
-import yaml
-from simpleeval import SimpleEval
-
+from src.config import load_config
 from src.models import (
     ExerciseBlock,
     HistoryEntry,
-    ProgramConfig,
     Readiness,
     SessionPlan,
     TrainingHistory,
 )
 
 
+def _state_from_thresholds(
+    score: int,
+    lower: int,
+    upper: int,
+    higher_is_better: bool,
+) -> str:
+    """Return RED, ORANGE, or GREEN for a single score given lower/upper thresholds.
+
+    When higher_is_better (e.g. energy): green if score > upper, orange if lower < score <= upper, red if score <= lower.
+    When lower_is_better (e.g. knee pain): green if score <= lower, orange if lower < score <= upper, red if score > upper.
+    """
+    if higher_is_better:
+        if score > upper:
+            return "GREEN"
+        if score > lower:
+            return "ORANGE"
+        return "RED"
+    else:
+        if score <= lower:
+            return "GREEN"
+        if score <= upper:
+            return "ORANGE"
+        return "RED"
+
+
+def _min_state(state_a: str, state_b: str) -> str:
+    """Return the minimum (worst) of two states: red < orange < green."""
+    order = {"RED": 0, "ORANGE": 1, "GREEN": 2}
+    return state_a if order[state_a] <= order[state_b] else state_b
+
+
 class WorkoutEngine:
     """Engine for determining the next best training session."""
 
-    def __init__(self, config_path: str | Path) -> None:
-        """Initialize engine with configuration file.
+    def __init__(self, config_dir: str | Path) -> None:
+        """Initialize engine with modular config (library, logic, sessions, selections, conditioning).
 
         Args:
-            config_path: Path to program_config.yaml file
+            config_dir: Directory containing library.yaml, logic.yaml, sessions.yaml,
+                        selections.yaml, conditioning.yaml.
         """
-        config_path = Path(config_path)
-        with config_path.open() as f:
-            config_data = yaml.safe_load(f)
-        self.config = ProgramConfig(**config_data)
+        config_dir = Path(config_dir)
+        self.config = load_config(config_dir)
 
     def determine_state(self, readiness: Readiness) -> str:
-        """Determine readiness state based on pain and energy levels.
+        """Determine readiness state from knee pain and energy using config.logic.thresholds.
 
-        Evaluates state conditions in order (RED → ORANGE → GREEN).
-        GREEN is the default catch-all if no previous states match.
+        Each score is mapped to RED/ORANGE/GREEN via its thresholds; overall state is the
+        minimum (worst) of the two (green > orange > red).
 
         Args:
-            readiness: User readiness with pain and energy levels
+            readiness: User readiness with knee_pain and energy (0-10)
 
         Returns:
             State name ("RED", "ORANGE", or "GREEN")
         """
-        # Create safe evaluator with only readiness fields
-        evaluator = SimpleEval(names={"knee_pain": readiness.knee_pain, "energy": readiness.energy})
+        th = self.config.logic.thresholds
+        ep = th.get("energy", {})
+        kp = th.get("knee_pain", {})
+        energy_lower = ep.get("lower", 2)
+        energy_upper = ep.get("upper", 5)
+        knee_lower = kp.get("lower", 3)
+        knee_upper = kp.get("upper", 6)
 
-        # Evaluate states in order (RED → ORANGE → GREEN)
-        for state in self.config.states:
-            if state.condition.lower() == "default":
-                # GREEN is the default catch-all
-                return state.name
-
-            try:
-                # Normalize logical operators to lowercase for simpleeval
-                condition = state.condition.replace(" OR ", " or ").replace(" AND ", " and ")
-                result = evaluator.eval(condition)
-                if result:
-                    return state.name
-            except Exception:
-                # If evaluation fails, skip to next state
-                continue
-
-        # Fallback to GREEN if somehow no state matched
-        return "GREEN"
+        energy_state = _state_from_thresholds(
+            readiness.energy,
+            energy_lower,
+            energy_upper,
+            higher_is_better=True,
+        )
+        pain_state = _state_from_thresholds(
+            readiness.knee_pain,
+            knee_lower,
+            knee_upper,
+            higher_is_better=False,
+        )
+        return _min_state(energy_state, pain_state)
 
     def calculate_pattern_debts(self, history: TrainingHistory) -> Dict[str, int]:
         """Calculate days since last occurrence for each pattern.
@@ -96,9 +122,9 @@ class WorkoutEngine:
         # Calculate debts for all patterns in config
         debts: Dict[str, int] = {}
         all_patterns = (
-            self.config.patterns.main
-            + self.config.patterns.accessory
-            + self.config.patterns.core
+            self.config.logic.patterns.main
+            + self.config.logic.patterns.accessory
+            + self.config.logic.patterns.core
         )
 
         for pattern in all_patterns:
@@ -110,51 +136,6 @@ class WorkoutEngine:
                 debts[pattern] = 100
 
         return debts
-
-    def _calculate_gym_debt(self, pattern_debts: Dict[str, int]) -> int:
-        """Calculate gym debt as sum of main pattern debts.
-
-        Args:
-            pattern_debts: Dictionary of pattern debts
-
-        Returns:
-            Sum of debts for main patterns
-        """
-        return sum(pattern_debts.get(pattern, 0) for pattern in self.config.patterns.main)
-
-    def _calculate_cond_debt(self, pattern_debts: Dict[str, int]) -> int:
-        """Calculate conditioning debt (placeholder for future implementation).
-
-        Args:
-            pattern_debts: Dictionary of pattern debts
-
-        Returns:
-            Placeholder value (0 for now)
-        """
-        # TODO: Implement conditioning debt calculation in future phase
-        return 0
-
-    def select_session_type(
-        self, energy: int, gym_debt: int, cond_debt: int
-    ) -> str:
-        """Select session type based on energy and debt levels (Level 1 logic).
-
-        Args:
-            energy: User energy level (0-10)
-            gym_debt: Calculated gym debt
-            cond_debt: Calculated conditioning debt
-
-        Returns:
-            Session type: "REST", "GYM", or "CONDITIONING"
-        """
-        if energy < 5:
-            return "REST"
-
-        if gym_debt > cond_debt and energy >= 5:
-            return "GYM"
-
-        # Default to CONDITIONING (deferred for this phase)
-        return "CONDITIONING"
 
     def _get_exercise_from_library(
         self, pattern: str, tier: str, state: str
@@ -169,7 +150,7 @@ class WorkoutEngine:
         Returns:
             Exercise name or None if not found
         """
-        pattern_lib = self.config.library.get(pattern)
+        pattern_lib = self.config.selections.get(pattern)
         if not pattern_lib:
             return None
 
@@ -222,7 +203,7 @@ class WorkoutEngine:
             )
         
         # CORE - select core pattern with highest debt
-        core_patterns = self.config.patterns.core
+        core_patterns = self.config.logic.patterns.core
         if core_patterns:
             core_debts = {
                 pattern: pattern_debts.get(pattern, 100)
@@ -249,10 +230,10 @@ class WorkoutEngine:
 
         # Block 2: Power
         # Follow session_structure.POWER: RFD
-        power_selection_dict = self.config.power_selection.model_dump()
+        power_selection_dict = self.config.logic.power_selection.model_dump()
         rfd_type = power_selection_dict[state]
         # RFD library structure: RFD -> HIGH/LOW/UPPER -> [list of exercises]
-        rfd_lib = self.config.library.get("RFD", {})
+        rfd_lib = self.config.selections.get("RFD", {})
         rfd_exercises = rfd_lib.get(rfd_type, [])
         if isinstance(rfd_exercises, list) and rfd_exercises:
             # Add all RFD exercises for the selected type
@@ -266,12 +247,12 @@ class WorkoutEngine:
                 )
 
         # Block 3: Main Lift
-        main_patterns = self.config.patterns.main
+        main_patterns = self.config.logic.patterns.main
         # Tie-breaker: when debts are equal, use pattern_priority (Lower/Upper rotation)
         priority_index = {
-            name: idx for idx, name in enumerate(self.config.pattern_priority)
+            name: idx for idx, name in enumerate(self.config.logic.pattern_priority)
         }
-        fallback_priority = len(self.config.pattern_priority)
+        fallback_priority = len(self.config.logic.pattern_priority)
 
         def sort_key(p: str) -> tuple:
             debt = pattern_debts.get(p, 100)
@@ -306,7 +287,7 @@ class WorkoutEngine:
         # Block 4: Accessories
         # Follow session_structure.ACCESSORIES: RELATED_ACCESSORIES
         # Get required accessories from relationships (format: PATTERN:TIER)
-        required_accessories = self.config.relationships.get(
+        required_accessories = self.config.logic.relationships.get(
             selected_main_pattern, []
         )
 
@@ -333,41 +314,110 @@ class WorkoutEngine:
 
         return SessionPlan(session_type="GYM", blocks=blocks)
 
+    def _compose_red_session(
+        self,
+        readiness: Readiness,
+        history: TrainingHistory,
+        last_push_plane: str | None = None,
+    ) -> SessionPlan:
+        """Compose a Red Day (recovery) session: mobility, isometrics, balanced pump, conditioning.
+
+        Block 1: PREP (mobility) – check-off items from config.
+        Block 2: ISOMETRICS – repair isometrics from config (tracked as WorkoutSet).
+        Block 3: ACCESSORIES – 1 Push + 1 Pull, opposite planes (Orange volume); plane from last_push_plane.
+        Block 4: CONDITIONING – Zone 2 / Steady State.
+
+        Args:
+            readiness: User readiness (unused but kept for signature consistency)
+            history: Training history (unused for red session composition)
+            last_push_plane: "VERTICAL" or "HORIZONTAL" from PatternHistory; if "VERTICAL" we do HORIZONTAL push today
+        """
+        blocks: List[ExerciseBlock] = []
+
+        # Block 1: PREP (Mobility) – check-off items from RECOVERY.mobility_flow
+        for name in self.config.sessions.RECOVERY.mobility_flow:
+            blocks.append(
+                ExerciseBlock(
+                    block_type="PREP",
+                    exercise_name=name,
+                    pattern="MOBILITY",
+                )
+            )
+
+        # Block 2: ISOMETRICS (Repair) from RECOVERY.repair_isometrics
+        for iso in self.config.sessions.RECOVERY.repair_isometrics:
+            blocks.append(
+                ExerciseBlock(
+                    block_type="ISOMETRICS",
+                    exercise_name=iso.name,
+                    pattern="ISOMETRIC",
+                )
+            )
+
+        # Block 3: ACCESSORIES – 1 Push + 1 Pull, opposite planes (Orange volume)
+        # If last push was VERTICAL -> today HORIZONTAL push, VERTICAL pull. Else VERTICAL push, HORIZONTAL pull.
+        if last_push_plane == "VERTICAL":
+            push_tier = "ACCESSORY_HORIZONTAL"
+            pull_tier = "ACCESSORY_VERTICAL"
+        else:
+            push_tier = "ACCESSORY_VERTICAL"
+            pull_tier = "ACCESSORY_HORIZONTAL"
+
+        push_exercise = self._get_exercise_from_library("PUSH", push_tier, "ORANGE")
+        pull_exercise = self._get_exercise_from_library("PULL", pull_tier, "ORANGE")
+        if push_exercise and push_exercise != "SKIP":
+            blocks.append(
+                ExerciseBlock(
+                    block_type="ACCESSORY_1",
+                    exercise_name=push_exercise,
+                    pattern=f"PUSH:{push_tier}",
+                )
+            )
+        if pull_exercise and pull_exercise != "SKIP":
+            blocks.append(
+                ExerciseBlock(
+                    block_type="ACCESSORY_2",
+                    exercise_name=pull_exercise,
+                    pattern=f"PULL:{pull_tier}",
+                )
+            )
+
+        # Block 4: CONDITIONING
+        blocks.append(
+            ExerciseBlock(
+                block_type="CONDITIONING",
+                exercise_name="Zone 2 / Steady State",
+                pattern="CONDITIONING:SS",
+            )
+        )
+
+        return SessionPlan(session_type="GYM", blocks=blocks)
 
     def generate_session(
-        self, readiness: Readiness, history: TrainingHistory
+        self,
+        readiness: Readiness,
+        history: TrainingHistory,
+        last_push_plane: str | None = None,
     ) -> SessionPlan:
-        """Generate the recommended session plan using new composition logic.
+        """Generate the recommended session plan.
+
+        When computed_state is RED, returns a Red Day (recovery) session with mobility,
+        isometrics, balanced pump, and conditioning. Otherwise returns lifting blocks
+        only; the route appends the conditioning block via the conditioning service.
 
         Args:
             readiness: User readiness with pain and energy levels
             history: User training history
+            last_push_plane: For RED sessions, "VERTICAL" or "HORIZONTAL" from PatternHistory (plane balancing)
 
         Returns:
-            SessionPlan with recommended session details
+            SessionPlan (GYM; Red Day already includes conditioning block)
 
         Raises:
-            ValueError: If no valid session is found
-            NotImplementedError: If CONDITIONING session type is selected
+            ValueError: If no valid main lift when not RED
         """
-        # Calculate pattern debts (handles None/empty gracefully)
+        state = self.determine_state(readiness)
+        if state == "RED":
+            return self._compose_red_session(readiness, history, last_push_plane)
         pattern_debts = self.calculate_pattern_debts(history)
-
-        # Calculate gym and conditioning debts
-        gym_debt = self._calculate_gym_debt(pattern_debts)
-        cond_debt = self._calculate_cond_debt(pattern_debts)
-
-        # Select session type (Level 1 logic)
-        session_type = self.select_session_type(
-            readiness.energy, gym_debt, cond_debt
-        )
-
-        # Compose session based on type
-        if session_type == "REST":
-            return SessionPlan(session_type="REST", blocks=[])
-        elif session_type == "GYM":
-            return self.compose_gym_session(readiness, pattern_debts)
-        elif session_type == "CONDITIONING":
-            raise NotImplementedError("Conditioning sessions not yet implemented")
-        else:
-            raise ValueError(f"Unknown session type: {session_type}")
+        return self.compose_gym_session(readiness, pattern_debts)

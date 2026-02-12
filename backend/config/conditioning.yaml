@@ -1,0 +1,98 @@
+equipment: "Assault Bike" 
+
+protocols:
+  # SIT (Sprint Interval Training)
+  - tier: SIT
+    level: 1
+    description: "2 x 30s on / 60s off"
+    work_duration: 30
+    rest_duration: 60
+    rounds: 2
+  - tier: SIT
+    level: 2
+    description: "6 x 10s on / 40s off"
+    work_duration: 10
+    rest_duration: 40
+    rounds: 6
+  - tier: SIT
+    level: 3
+    description: "6 x 10s on / 40s off"
+    work_duration: 10
+    rest_duration: 40
+    rounds: 6
+  - tier: SIT
+    level: 4
+    description: "5 x 12s on / 36s off"
+    work_duration: 12
+    rest_duration: 36
+    rounds: 5
+  - tier: SIT
+    level: 5
+    description: "5 x 12s on / 36s off"
+    work_duration: 12
+    rest_duration: 36
+    rounds: 5
+  - tier: SIT
+    level: 6
+    description: "4 x 15s on / 30s off"
+    work_duration: 15
+    rest_duration: 30
+    rounds: 4
+  - tier: SIT
+    level: 7
+    description: "4 x 15s on / 30s off"
+    work_duration: 15
+    rest_duration: 30
+    rounds: 4
+
+  # HIIT (High Intensity)
+  - tier: HIIT
+    level: 1
+    description: "2-Mile Time Trial (Benchmark)"
+  - tier: HIIT
+    level: 2
+    description: "8 x 30s on / 30s off"
+    work_duration: 30
+    rest_duration: 30
+    rounds: 8
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 3
+    description: "9 x 30s on / 30s off"
+    work_duration: 30
+    rest_duration: 30
+    rounds: 9
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 4
+    description: "10 x 30s on / 30s off"
+    work_duration: 30
+    rest_duration: 30
+    rounds: 10
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 5
+    description: "8 x 40s on / 20s off"
+    work_duration: 40
+    rest_duration: 20
+    rounds: 8
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 6
+    description: "9 x 40s on / 20s off"
+    work_duration: 40
+    rest_duration: 20
+    rounds: 9
+    target_modifier: "BENCHMARK_1.2"
+  - tier: HIIT
+    level: 7
+    description: "10 x 40s on / 20s off"
+    work_duration: 40
+    rest_duration: 20
+    rounds: 10
+    target_modifier: "BENCHMARK_1.2"
+
+  # SS (Steady State) - Red Day Only
+  - tier: SS
+    level: 1
+    description: "Zone 2 Steady State"

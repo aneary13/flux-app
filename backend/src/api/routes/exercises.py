@@ -22,88 +22,55 @@ async def list_exercises(
     return list(exercises)
 
 
+def _modality_from_category(category: str) -> str:
+    """Map category to Exercise.modality."""
+    if category == "MOBILITY":
+        return "Mobility"
+    if category == "RFD":
+        return "Power"
+    if category == "CONDITIONING":
+        return "Cardio"
+    return "Strength"
+
+
 @router.post("/seed")
 async def seed_exercises(
     db: AsyncSession = Depends(get_db),
     engine: WorkoutEngine = Depends(get_engine),
 ) -> dict[str, int]:
-    """Seed database with exercises from Phase 6 V2 Config.
+    """Seed database with exercises from config.library.catalog.
 
-    Robustly scrapes exercises from config.library, handling both:
-    1. Traffic Light Dicts (Squat/Hinge): {GREEN: "Name", RED: "Name"}
-    2. Power Lists (RFD): ["Jump 1", "Jump 2"]
-
-    Args:
-        db: Database session
-        engine: WorkoutEngine instance
-
-    Returns:
-        Dictionary with count of exercises created
+    Uses catalog as source of truth; maps settings.unit, settings.unilateral,
+    settings.load to Exercise.tracking_unit, is_unilateral, is_bodyweight.
     """
-
-    def to_dict(obj):
-        if isinstance(obj, dict):
-            return obj
-        if hasattr(obj, "model_dump"):
-            return obj.model_dump()
-        if hasattr(obj, "dict"):
-            return obj.dict()
-        return vars(obj)
-
-    # 1. Map Name -> Category to prevent duplicates
-    exercises_map: dict[str, str] = {}
-
-    # 2. Extract from Library
-    # Access lowercase 'library' if 'Library' doesn't exist
-    library_obj = getattr(engine.config, "library", getattr(engine.config, "Library", {}))
-    library_data = to_dict(library_obj)
-
-    for pattern, variants in library_data.items():
-        # pattern = SQUAT, RFD, etc.
-        if not isinstance(variants, dict):
-            continue
-
-        for variant_name, entry_data in variants.items():
-            # CASE A: Standard Traffic Light Pattern (Dict)
-            # Structure: {GREEN: "Back Squat", RED: "SKIP"}
-            if isinstance(entry_data, dict):
-                for state, exercise_name in entry_data.items():
-                    if exercise_name and isinstance(exercise_name, str) and exercise_name != "SKIP":
-                        if exercise_name not in exercises_map:
-                            exercises_map[exercise_name] = pattern
-
-            # CASE B: RFD/Power Pattern (List)
-            # Structure: ["Hurdle Jump", "Box Jump"]
-            elif isinstance(entry_data, list):
-                for exercise_name in entry_data:
-                    if exercise_name and isinstance(exercise_name, str):
-                        if exercise_name not in exercises_map:
-                            exercises_map[exercise_name] = pattern
-
-    # 3. Check for standalone RFD section (Just in case it's not in library)
-    rfd_obj = getattr(engine.config, "RFD", getattr(engine.config, "rfd", {}))
-    if rfd_obj and rfd_obj != library_data.get("RFD"):
-        rfd_data = to_dict(rfd_obj)
-        for power_type, exercise_list in rfd_data.items():
-            if isinstance(exercise_list, list):
-                for exercise_name in exercise_list:
-                    if exercise_name not in exercises_map:
-                        exercises_map[exercise_name] = "RFD"
-
-    # 4. Database Insertion
     created_count = 0
+    catalog = engine.config.library.catalog
 
-    for exercise_name, category in exercises_map.items():
-        # Check if exercise already exists
-        stmt = select(Exercise).where(Exercise.name == exercise_name)
+    for entry in catalog:
+        if hasattr(entry, "get_settings"):
+            settings = entry.get_settings()
+        else:
+            s = getattr(entry, "settings", None)
+            settings = s if isinstance(s, dict) else (s.model_dump(exclude_none=True) if s else {})
+
+        unit = (settings.get("unit") or "REPS").upper()
+        tracking_unit = "SECS" if unit == "SECS" else ("WATTS" if unit == "WATTS" else "REPS")
+        unilateral = bool(settings.get("unilateral", False))
+        load = (settings.get("load") or "").upper()
+        is_bodyweight = load == "BODYWEIGHT"
+
+        stmt = select(Exercise).where(Exercise.name == entry.name)
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
 
         if not existing:
             new_exercise = Exercise(
-                name=exercise_name,
-                category=category,
-                modality="Strength" if category != "RFD" else "Power",
+                name=entry.name,
+                category=entry.category,
+                modality=_modality_from_category(entry.category),
+                tracking_unit=tracking_unit,
+                is_unilateral=unilateral,
+                is_bodyweight=is_bodyweight,
             )
             db.add(new_exercise)
             created_count += 1
@@ -117,4 +84,4 @@ async def seed_exercises(
             detail=f"Failed to seed exercises: {str(e)}",
         ) from e
 
-    return {"created": created_count, "total_unique": len(exercises_map)}
+    return {"created": created_count, "total_unique": len(catalog)}
