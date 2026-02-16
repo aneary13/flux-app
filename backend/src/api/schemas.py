@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date as dt_date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 class ReadinessLatest(BaseModel):
     """Latest daily readiness for the authenticated user (GET /readiness/latest)."""
 
-    date: date = Field(..., description="Date of the check-in")
+    date: dt_date = Field(..., description="Date of the check-in")
     knee_pain: int = Field(..., ge=0, le=10, description="Knee pain level 0-10")
     energy_level: int = Field(..., ge=0, le=10, description="Energy level 0-10")
     computed_state: str = Field(..., description="RED, ORANGE, or GREEN")

@@ -1,13 +1,19 @@
-# Frontend (legacy)
+# FLUX Frontend
 
-The FLUX web app has been moved to **`../web`** (Next.js 14, App Router, TypeScript, Tailwind, Shadcn/UI).
+Next.js 14 (App Router), TypeScript, Tailwind CSS, and Shadcn-style UI for the FLUX training app.
 
-To run the web app:
+## Setup
 
 ```bash
-cd ../web
 npm install
+cp .env.example .env
+# Edit .env: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+## Run
+
+```bash
 npm run dev
 ```
 
-The previous Expo/React Native app has been removed as part of the Schema 3.0 frontend implementation.
+Open [http://localhost:3000](http://localhost:3000). The backend API should be running (e.g. at `NEXT_PUBLIC_API_URL`).
