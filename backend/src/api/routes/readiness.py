@@ -5,10 +5,10 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from uuid import UUID
 
 from src.api.deps import get_db, get_engine, get_user_id
+from src.api.schemas import ReadinessLatest
 from src.db.models import DailyReadiness
 from src.engine import WorkoutEngine
 from src.models import Readiness
@@ -77,3 +77,33 @@ async def check_in(
         ) from e
 
     return {"state": computed_state}
+
+
+@router.get("/latest", response_model=ReadinessLatest)
+async def get_latest_readiness(
+    db: AsyncSession = Depends(get_db),
+    user_id: UUID = Depends(get_user_id),
+) -> ReadinessLatest:
+    """Return the latest daily readiness for the authenticated user.
+
+    Returns 404 when the user has no readiness record (e.g. before first check-in).
+    """
+    stmt = (
+        select(DailyReadiness)
+        .where(DailyReadiness.user_id == user_id)
+        .order_by(DailyReadiness.date.desc())
+        .limit(1)
+    )
+    result = await db.execute(stmt)
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No readiness record found for this user",
+        ) from None
+    return ReadinessLatest(
+        date=row.date,
+        knee_pain=row.knee_pain,
+        energy_level=row.energy_level,
+        computed_state=row.computed_state,
+    )

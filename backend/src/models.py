@@ -1,9 +1,11 @@
 """Pydantic models for FLUX input and output (config lives in src.config)."""
 
 from datetime import date
-from typing import List
+from typing import List, Literal
 
 from pydantic import BaseModel, Field, computed_field, field_validator
+
+TrackingUnit = Literal["REPS", "SECS", "WATTS"]
 
 
 # Input Models
@@ -46,11 +48,23 @@ class ExerciseBlock(BaseModel):
     """A single exercise block within a session."""
 
     block_type: str = Field(
-        description="Block type: PREP, POWER, MAIN, ACCESSORY_1, ACCESSORY_2"
+        description="Block type: PREP, POWER, MAIN, ACCESSORY_1, ACCESSORY_2, CONDITIONING, ISOMETRICS"
     )
     exercise_name: str = Field(description="Name of the exercise")
     pattern: str | None = Field(
         default=None, description="Movement pattern for debt tracking"
+    )
+    rounds: int | None = Field(
+        default=None, description="Number of rounds (e.g. for conditioning: 6)"
+    )
+    is_bodyweight: bool = Field(
+        default=False, description="If true, show Bodyweight + load UI"
+    )
+    tracking_unit: TrackingUnit = Field(
+        default="REPS", description="REPS, SECS, or WATTS"
+    )
+    is_unilateral: bool = Field(
+        default=False, description="If true, label reps/time as per side"
     )
 
 

@@ -93,9 +93,12 @@ async def get_conditioning_block(
     # Step D: Assembly
     exercise_name = description + target_suffix
     pattern = f"CONDITIONING:{tier}"
+    rounds = protocol.rounds if protocol else None
 
     return ExerciseBlock(
         block_type="CONDITIONING",
         exercise_name=exercise_name.strip(),
         pattern=pattern,
+        rounds=rounds,
+        tracking_unit="WATTS",
     )

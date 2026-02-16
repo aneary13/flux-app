@@ -15,11 +15,58 @@ from src.api.deps import get_db, get_engine, get_user_id
 from src.api.schemas import WorkoutSessionCreate, WorkoutSessionRead, WorkoutSetRead
 from src.db.models import Exercise, PatternHistory, WorkoutSession, WorkoutSet
 from src.engine import WorkoutEngine
-from src.models import HistoryEntry, Readiness, SessionPlan, TrainingHistory
+from src.models import ExerciseBlock, HistoryEntry, Readiness, SessionPlan, TrainingHistory
 from src.services.conditioning import get_conditioning_block
 from src.services.workout import log_completed_session
 
 router = APIRouter()
+
+# Normalize DB tracking_unit to API Literal "REPS" | "SECS" | "WATTS"
+_TRACKING_UNIT_MAP = {"REPS": "REPS", "SECS": "SECS", "WATTS": "WATTS"}
+
+
+async def _enrich_blocks_from_exercise_table(
+    db: AsyncSession, blocks: list[ExerciseBlock]
+) -> list[ExerciseBlock]:
+    """Enrich each block with is_bodyweight, tracking_unit, is_unilateral from Exercise table.
+
+    CONDITIONING blocks are left unchanged (already have rounds/tracking_unit).
+    Unknown exercise names get defaults: is_bodyweight=False, tracking_unit=REPS, is_unilateral=False.
+    """
+    result: list[ExerciseBlock] = []
+    for block in blocks:
+        if block.block_type == "CONDITIONING":
+            result.append(block)
+            continue
+        stmt = select(Exercise).where(Exercise.name == block.exercise_name)
+        r = await db.execute(stmt)
+        ex = r.scalar_one_or_none()
+        if ex is None:
+            result.append(
+                ExerciseBlock(
+                    block_type=block.block_type,
+                    exercise_name=block.exercise_name,
+                    pattern=block.pattern,
+                    rounds=block.rounds,
+                    is_bodyweight=False,
+                    tracking_unit="REPS",
+                    is_unilateral=False,
+                )
+            )
+            continue
+        unit = _TRACKING_UNIT_MAP.get((ex.tracking_unit or "REPS").upper(), "REPS")
+        result.append(
+            ExerciseBlock(
+                block_type=block.block_type,
+                exercise_name=block.exercise_name,
+                pattern=block.pattern,
+                rounds=block.rounds,
+                is_bodyweight=ex.is_bodyweight,
+                tracking_unit=unit,
+                is_unilateral=ex.is_unilateral,
+            )
+        )
+    return result
 
 
 def _build_history_from_pattern_history(rows: list) -> TrainingHistory:
@@ -82,9 +129,11 @@ async def recommend_workout(
         ) from e
 
     if state == "RED":
-        return lifting_plan
+        blocks = await _enrich_blocks_from_exercise_table(db, list(lifting_plan.blocks))
+        return SessionPlan(session_type="GYM", blocks=blocks)
     conditioning_block = await get_conditioning_block(state, user_id, db)
-    blocks = list(lifting_plan.blocks) + [conditioning_block]
+    all_blocks = list(lifting_plan.blocks) + [conditioning_block]
+    blocks = await _enrich_blocks_from_exercise_table(db, all_blocks)
     return SessionPlan(session_type="GYM", blocks=blocks)
 
 
