@@ -1,72 +1,88 @@
+# Format: CATEGORY -> PATTERN -> (STATE or DEFAULT)
+
 SQUAT:
-  MAIN:
-    GREEN: "Back Squat"
-    ORANGE: "Box Squat (Vertical Shin)"
+  MAIN: # RED is omitted; the Template for RED days simply won't call SQUAT:MAIN
+    GREEN:
+      - "Back Squat"
+    ORANGE: 
+      - "Box Squat (Vertical Shin)"
   ACCESSORY:
-    GREEN: "SL Knee Extension"
-    ORANGE: "SL Knee Extension Isometric"
+    GREEN:
+      - "SL Knee Extension"
+    ORANGE:
+      - "SL Knee Extension Iso"
 
 HINGE:
   MAIN:
-    GREEN: "BB RDL"
-    ORANGE: "BB RDL" # Or Trap Bar
+    DEFAULT:
+      - "BB RDL"
   ACCESSORY_HIP:
-    GREEN: "DB SL RDL"
-    ORANGE: "DB SL RDL"
+    DEFAULT:
+      - "DB SL RDL"
   ACCESSORY_KNEE:
-    GREEN: "SL Leg Curl"
-    ORANGE: "SL Leg Curl"
+    DEFAULT:
+      - "SL Leg Curl"
 
 PUSH:
-  MAIN:
-    GREEN: "BB Bench Press"
-    ORANGE: "Incline DB Press"
-  ACCESSORY_VERTICAL:
-    GREEN: "Half-kneeling DB OH Press"
-    ORANGE: "Half-kneeling DB OH Press"
+  MAIN: # Knee/Energy doesn't change the movement, just the load
+    DEFAULT:
+      - "BB Bench Press"
   ACCESSORY_HORIZONTAL:
-    GREEN: "Incline DB Press"
-    ORANGE: "Push Up"
+    DEFAULT:
+      - "Incline DB Press"
+  ACCESSORY_VERTICAL:
+    DEFAULT:
+      - "Half-kneeling DB OH Press"
 
 PULL:
   MAIN:
-    GREEN: "Chin Up"
-    ORANGE: "Lat Pulldown"
+    DEFAULT:
+      - "Chin Up"
   ACCESSORY_VERTICAL:
-    GREEN: "Lat Pulldown"
-    ORANGE: "Lat Pulldown"
+    DEFAULT:
+      - "Lat Pulldown"
   ACCESSORY_HORIZONTAL:
-    GREEN: "Chest-supported DB Row"
-    ORANGE: "Chest-supported DB Row"
-
-LUNGE:
-  ACCESSORY:
-    GREEN: "DB Bulgarian Split Squat"
-    ORANGE: "Lunge Isometric Hold"
-
-CORE:
-  TRANSVERSE:
-    GREEN: "Half-kneeling Cable Rotation"
-    ORANGE: "Half-kneeling Cable Rotation"
-  SAGITTAL:
-    GREEN: "Hanging Knee Tuck"
-    ORANGE: "Hanging Knee Tuck"
-  FRONTAL:
-    GREEN: "DB Side Bend"
-    ORANGE: "DB Side Bend"
-
-PATELLAR_ISO:
-  PREP:
-    GREEN: "SL Wall Sit"
-    ORANGE: "SL Wall Sit"
+    DEFAULT:
+      - "Chest-supported DB Row"
 
 RFD:
   HIGH:
-    - "Hurdle Jump"
-    - "Hang Power Clean"
+    DEFAULT:
+      - "Hurdle Jump"
+      - "Hang Power Clean"
   LOW:
-    - "Box Jump"
-    - "Snatch Grip High Pull"
+    DEFAULT:
+      - "Box Jump"
+      - "Snatch Grip High Pull"
   UPPER:
-    - "MB Chest Pass"
-    - "MB Rotational Throw"
+    DEFAULT: # Only called on RED days per logic.yaml
+      - "MB Chest Pass"
+      - "MB Rotational Throw"
+
+CORE:
+  TRANSVERSE:
+    DEFAULT:
+      - "Half-kneeling Cable Rotation"
+  SAGITTAL:
+    DEFAULT:
+      - "Hanging Knee Tuck"
+  FRONTAL:
+    DEFAULT:
+      - "DB Side Bend"
+
+ISOMETRIC:
+  PATELLAR:
+    DEFAULT:
+      - "SL Knee Extension Iso"
+  HAMSTRING:
+    DEFAULT:
+      - "SL Foam Roller Hamstring Iso"
+
+MOBILITY:
+  DYNAMIC:
+    DEFAULT:
+      - "Inchworms"
+      - "World's Greatest Stretch"
+      - "Cat Cow"
+      - "Hip Flexor Stretch"
+      - "Pigeon Stretch"

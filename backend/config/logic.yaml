@@ -1,9 +1,3 @@
-# Pattern groups (main, accessory, core)
-patterns:
-  main: [SQUAT, PUSH, HINGE, PULL]
-  accessory: [LUNGE]
-  core: [CORE]
-
 # Readiness Thresholds
 thresholds:
   energy:
@@ -13,20 +7,14 @@ thresholds:
     lower: 3
     upper: 6
 
-# Pattern Priority (Order of Operations)
+# Priority for "Pattern Debt" calculation
 pattern_priority:
   - SQUAT
   - PUSH
   - HINGE
   - PULL
 
-# Power Selection Logic based on State
-power_selection:
-  GREEN: "HIGH"   # High velocity/impact
-  ORANGE: "LOW"   # Low impact/technical
-  RED: "UPPER"    # No impact/upper body only
-
-# Accessory Logic (If I do X Main, I should do Y Accessory)
+# The "Related Accessories" logic (Chain of Intent)
 relationships:
   SQUAT:
     - PULL:ACCESSORY_HORIZONTAL
@@ -40,4 +28,14 @@ relationships:
   PULL:
     - HINGE:ACCESSORY_KNEE
     - PUSH:ACCESSORY_VERTICAL
-  
+
+# Complements for accessory selection
+complements:
+  VERTICAL: "HORIZONTAL"
+  HORIZONTAL: "VERTICAL"
+
+# Power/RFD resolution based on State
+power_selection:
+  GREEN: "HIGH"
+  ORANGE: "LOW"
+  RED: "UPPER"

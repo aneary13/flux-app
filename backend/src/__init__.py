@@ -1,1 +1,0 @@
-"""FLUX App - Logic Core."""

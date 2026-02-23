@@ -1,122 +1,214 @@
+# Source of truth for exercise mechanics and UI rendering logic
+
 catalog:
-  # --- SQUAT PATTERN ---
+  # --- SQUAT MOVEMENTS ---
   - name: "Back Squat"
-    category: "SQUAT"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
   - name: "Box Squat (Vertical Shin)"
-    category: "SQUAT"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
   - name: "SL Knee Extension"
-    category: "ACCESSORY"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
-  - name: "SL Leg Press"
-    category: "ACCESSORY"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: REPS
 
-  # --- HINGE PATTERN ---
-  - name: "BB RDL"
-    category: "HINGE"
-  - name: "Trap Bar Deadlift"
-    category: "HINGE"
-  - name: "DB SL RDL"
-    category: "ACCESSORY"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
-  - name: "SL Leg Curl"
-    category: "ACCESSORY"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
-  - name: "45 Degree Back Extension"
-    category: "ACCESSORY"
-
-  # --- PUSH PATTERN ---
-  - name: "BB Bench Press"
-    category: "PUSH"
-  - name: "Incline DB Press"
-    category: "PUSH"
-  - name: "Half-kneeling DB OH Press"
-    category: "PUSH"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
-  - name: "Push Up"
-    category: "PUSH"
-    settings: { load: BODYWEIGHT, unit: REPS }
-
-  # --- PULL PATTERN ---
-  - name: "Chin Up"
-    category: "PULL"
-    settings: { load: BODYWEIGHT, unit: REPS } # Loadable bodyweight
-  - name: "Lat Pulldown"
-    category: "PULL"
-  - name: "Chest-supported DB Row"
-    category: "PULL"
-  - name: "DB Row"
-    category: "PULL"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
-
-  # --- LUNGE / ACCESSORY ---
-  - name: "DB Bulgarian Split Squat"
-    category: "LUNGE"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
-  - name: "Reverse Lunge"
-    category: "LUNGE"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
-
-  # --- CORE ---
-  - name: "Half-kneeling Cable Rotation"
-    category: "CORE"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
-  - name: "Hanging Knee Tuck"
-    category: "CORE"
-    settings: { load: BODYWEIGHT, unit: REPS }
-  - name: "DB Side Bend"
-    category: "CORE"
-    settings: { unilateral: true, load: WEIGHTED, unit: REPS }
-
-  # --- BALLISTIC (Power) ---
-  - name: "Hurdle Jump"
-    category: "RFD"
-    settings: { load: BODYWEIGHT, unit: REPS }
-  - name: "Box Jump"
-    category: "RFD"
-    settings: { load: BODYWEIGHT, unit: REPS }
-  - name: "Hang Power Clean"
-    category: "RFD"
-  - name: "Snatch Grip High Pull"
-    category: "RFD"
-  - name: "MB Chest Pass"
-    category: "RFD"
-  - name: "MB Rotational Throw"
-    category: "RFD"
-
-  # --- ISOMETRICS (Repair/Prep) ---
-  - name: "SL Wall Sit"
-    category: "ISOMETRIC"
-    settings: { unilateral: true, load: BODYWEIGHT, unit: SECS }
-  - name: "Spanish Squat Hold"
-    category: "ISOMETRIC"
-    settings: { load: BODYWEIGHT, unit: SECS }
   - name: "SL Knee Extension Iso"
-    category: "ISOMETRIC"
-    settings: { unilateral: true, load: WEIGHTED, unit: SECS }
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: SECS
+
+  # --- HINGE MOVEMENTS ---
+  - name: "BB RDL"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "Trap Bar Deadlift"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "DB SL RDL"
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "SL Leg Curl"
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: REPS
+
+  # --- PUSH MOVEMENTS ---
+  - name: "BB Bench Press"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "Incline DB Press"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "Half-kneeling DB OH Press"
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "Push Up"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  # --- PULL MOVEMENTS ---
+  - name: "Chin Up"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Lat Pulldown"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "Chest-supported DB Row"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
+  # --- CORE MOVEMENTS ---
+  - name: "Half-kneeling Cable Rotation"
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "Hanging Knee Tuck"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "DB Side Bend"
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "Deadbug"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Side Plank"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: SECS
+
+  # --- RFD (Power) ---
+  - name: "Hurdle Jump"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Box Jump"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Hang Power Clean"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "Snatch Grip High Pull"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "MB Chest Pass"
+    settings:
+      unilateral: false
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "MB Rotational Throw"
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: REPS
+
+  # --- ISOMETRICS ---
+  - name: "Spanish Squat Hold"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: SECS
+
   - name: "SL Foam Roller Hamstring Iso"
-    category: "ISOMETRIC"
-    settings: { unilateral: true, load: BODYWEIGHT, unit: SECS }
-  - name: "Lunge Isometric Hold"
-    category: "ISOMETRIC"
-    settings: { unilateral: true, load: BODYWEIGHT, unit: SECS }
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: SECS
 
-  # --- MOBILITY ---
+  - name: "SL Wall Sit"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: SECS
+
+  # --- MOBILITY (Non-tracked Checklist items) ---
   - name: "Cat Cow"
-    category: "MOBILITY"
-    settings: { load: BODYWEIGHT, unit: REPS }
-  - name: "World's Greatest Stretch"
-    category: "MOBILITY"
-    settings: { unilateral: true, load: BODYWEIGHT, unit: REPS }
-  - name: "90/90 Hip Switch"
-    category: "MOBILITY"
-    settings: { load: BODYWEIGHT, unit: REPS }
-  - name: "Adductor Rock"
-    category: "MOBILITY"
-    settings: { load: BODYWEIGHT, unit: REPS }
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: CHECKLIST
 
-  # --- CONDITIONING ---
-  - name: "Assault Bike"
-    category: "CONDITIONING"
-    settings: { unit: WATTS } # Special case for display logic
-  
+  - name: "World's Greatest Stretch"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Inchworms"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Hip Flexor Stretch"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Pigeon Stretch"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: CHECKLIST
