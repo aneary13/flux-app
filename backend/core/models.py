@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 
 # -----------------------------
@@ -35,17 +35,20 @@ class GenerateSessionRequest(BaseModel):
     energy: int
     pattern_debts: Dict[str, int] = {}
     conditioning_levels: Dict[str, int] = {}
+    benchmarks: Dict[str, Any] = {}
 
 class StartSessionRequest(BaseModel):
     readiness: Dict[str, int]
 
 class LogSetRequest(BaseModel):
     exercise_name: str
+    set_index: int
     weight: Optional[float] = None
     reps: Optional[int] = None
     seconds: Optional[int] = None
     is_warmup: bool = False
     is_benchmark: bool = False
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class CompleteSessionRequest(BaseModel):
     exercise_notes: Dict[str, str] = {}

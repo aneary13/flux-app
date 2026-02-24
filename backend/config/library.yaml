@@ -182,7 +182,7 @@ catalog:
       load: BODYWEIGHT
       unit: SECS
 
-  # --- MOBILITY (Non-tracked Checklist items) ---
+  # --- MOBILITY ---
   - name: "Cat Cow"
     settings:
       unilateral: false
@@ -212,3 +212,10 @@ catalog:
       unilateral: true
       load: BODYWEIGHT
       unit: CHECKLIST
+
+  # --- CONDITIONING ---
+  - name: "Assault Bike"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: WATTS

@@ -2,14 +2,14 @@
 
 PERFORMANCE:
   blocks:
-    - label: "Prep"
+    - label: "Mobility & Activation"
       type: "PREP"
       components:
         - "MOBILITY:DYNAMIC"    # Static: Always do the flow
         - "ISOMETRIC:PATELLAR"  # Static: Always do the knee iso
         - "CORE"                # Dynamic: Rotates TRANSVERSE -> SAGITTAL -> FRONTAL
     
-    - label: "Power"
+    - label: "Plyometrics & Power"
       type: "POWER"
       components:
         - "RFD"                 # Dynamic: Resolves based on state
@@ -19,19 +19,19 @@ PERFORMANCE:
       components:
         - "MAIN_PATTERN"        # Dynamic: Resolves MAIN (SQUAT, HINGE, etc.)
     
-    - label: "Accessories"
-      type: "ACCESSORY"
+    - label: "Accessory Lifts"
+      type: "ACCESSORIES"
       components:
         - "RELATED_ACCESSORIES" # Dynamic: Resolves based on MAIN
     
-    - label: "Conditioning"
+    - label: "Off-Feet Conditioning"
       type: "CONDITIONING"
       components:
         - "CONDITIONING"        # Dynamic: Resolves via protocol level
 
 RECOVERY:
   blocks:
-    - label: "Mobility"
+    - label: "Mobility & Core"
       type: "PREP"
       components:
         - "MOBILITY:DYNAMIC"    # Static: Always do the flow
@@ -43,13 +43,13 @@ RECOVERY:
         - "ISOMETRIC:PATELLAR"  # Static: Always do the knee iso
         - "ISOMETRIC:HAMSTRING" # Static: Always do the hamstring iso
     
-    - label: "Upper Body"
+    - label: "Upper Body Accessories"
       type: "ACCESSORY"
       components:
         - "PUSH:ACCESSORY"      # Dynamic: Picks highest debt (e.g. Vertical)
         - "PULL:ACCESSORY"      # Dynamic: Sees the Push choice and picks complement (Horizontal)
     
-    - label: "Conditioning"
+    - label: "Off-Feet Conditioning"
       type: "CONDITIONING"
       components: 
         - "CONDITIONING:SS"     # Static: Always do the steady state

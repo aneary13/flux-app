@@ -132,7 +132,7 @@ def start_session(request: StartSessionRequest):
             "status": "IN_PROGRESS"
         }
         
-        response = supabase.table("workout_sessions").insert(session_data).execute()
+        response = supabase.table("workout_sessions").upsert(session_data).execute()
         
         if not response.data:
             raise Exception("Failed to start session.")
@@ -152,14 +152,19 @@ def log_atomic_set(session_id: str, request: LogSetRequest):
         set_data = {
             "session_id": session_id,
             "exercise_name": request.exercise_name,
+            "set_index": request.set_index,
             "weight": request.weight,
             "reps": request.reps,
             "seconds": request.seconds,
             "is_warmup": request.is_warmup,
-            "is_benchmark": request.is_benchmark
+            "is_benchmark": request.is_benchmark,
+            "metadata": request.metadata
         }
         
-        supabase.table("workout_sets").insert(set_data).execute()
+        supabase.table("workout_sets").upsert(
+            set_data,
+            on_conflict="session_id, exercise_name, set_index"
+        ).execute()
         return {"status": "Set logged successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -227,7 +232,7 @@ def complete_session(session_id: str, request: CompleteSessionRequest):
         if state_row_id:
             supabase.table("user_configs").update({"data": current_state}).eq("id", state_row_id).execute()
         else:
-            supabase.table("user_configs").insert({
+            supabase.table("user_configs").upsert({
                 "user_id": DUMMY_USER_ID,
                 "slug": "state",
                 "data": current_state

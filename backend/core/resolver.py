@@ -120,7 +120,7 @@ class WorkoutResolver:
                 raise ValueError("Main pattern has not been resolved yet!")
             return self._resolve_literal(self.main_pattern, "MAIN")
 
-        # 2. Handle dynamic Keyword: RELATED_ACCESSORIES
+        # 2. Handle dynamic Keyword: RELATED_ACCESSORIES (Used in PERFORMANCE archetype)
         if component_str == "RELATED_ACCESSORIES":
             accessories = self.logic.get("relationships", {}).get(self.main_pattern, [])
             resolved_accs = []
@@ -130,13 +130,28 @@ class WorkoutResolver:
                 resolved_accs.extend(self._resolve_literal(cat, pat))
             return resolved_accs
 
-        # 3. Handle specific Literals: e.g., "MOBILITY:DYNAMIC"
+        # 3. Handle specific Literals with Colons: e.g., "PUSH:ACCESSORY" or "MOBILITY:DYNAMIC"
         if ":" in component_str:
             cat, pat = component_str.split(":")
+            
+            # BUG FIX: If the pattern is a generic "ACCESSORY" placeholder (common in RECOVERY sessions),
+            # we must resolve it to a concrete sub-key in the selections dictionary.
+            if pat == "ACCESSORY":
+                # Look up available sub-patterns for this category (e.g., PUSH -> HORIZONTAL, VERTICAL)
+                available_patterns = list(self.selections.get(cat, {}).keys())
+                
+                # Filter out 'MAIN' to ensure we only pick actual accessory movements
+                accessory_options = [p for p in available_patterns if p != "MAIN"]
+                
+                if accessory_options:
+                    # Logic: Pick the first available sub-pattern as the concrete target.
+                    # In a future update, this could be tied to debt or complementary logic.
+                    pat = accessory_options[0]
+            
             return self._resolve_literal(cat, pat)
 
         # 4. Handle broad Categories: e.g., "CORE"
-        # (For now, we'll just pick the first sub-pattern in the category as a default)
+        # (Picks the first sub-pattern in the category as a default fallback)
         category_dict = self.selections.get(component_str, {})
         if category_dict:
             first_pattern = next(iter(category_dict.keys()))
@@ -144,14 +159,20 @@ class WorkoutResolver:
             
         return []
 
-    def _resolve_conditioning(self, component_str: str, conditioning_levels: Dict[str, int]) -> List[Dict[str, Any]]:
+    def _resolve_conditioning(self, component_str: str, conditioning_levels: Dict[str, int], benchmarks: Dict[str, float]) -> List[Dict[str, Any]]:
         """
-        Resolves the conditioning block based on the protocol and the user's current progression level.
+        Resolves the conditioning block based on protocol progression, alternating logic, and benchmark math.
         """
+        # 1. The Alternator: Dynamic Protocol Selection
         if ":" in component_str:
+            # E.g., "CONDITIONING:SS" explicitly asks for SS
             _, protocol = component_str.split(":")
         else:
-            protocol = "HIIT" 
+            # If generic "CONDITIONING" (Performance days), alternate between HIIT and SIT.
+            # Whichever has the lower level is 'due'. If tied, default to HIIT.
+            hiit_lvl = conditioning_levels.get("HIIT", 1)
+            sit_lvl = conditioning_levels.get("SIT", 1)
+            protocol = "SIT" if sit_lvl < hiit_lvl else "HIIT" 
             
         current_level = conditioning_levels.get(protocol, 1)
         level_str = str(current_level)
@@ -166,26 +187,47 @@ class WorkoutResolver:
         level_details = protocol_data.get(level_str, {})
         equipment = self.conditioning.get("equipment", "Assault Bike")
         tracking_unit = self.conditioning.get("tracking_unit", "WATTS")
-        
+
+        # 2. Benchmark Math & Target Intensity
+        target_intensity = None
+        is_benchmark = level_details.get("is_benchmark", False)
+
+        if protocol == "HIIT" and not is_benchmark:
+            # Retrieve the benchmark watts from the user's state
+            hiit_benchmark = benchmarks.get("HIIT_WATTS")
+            
+            # Look for an intensity multiplier in your YAML (e.g., 1.2 for 120%), default to 1.2
+            intensity_multiplier = level_details.get("intensity_multiplier", 1.2) 
+
+            if hiit_benchmark:
+                target_intensity = round(hiit_benchmark * intensity_multiplier)
+                
+        elif protocol == "SIT":
+            # SIT is an all-out sprint, no specific wattage calculation
+            target_intensity = "MAX"
+
         return [{
-            "name": f"{equipment} - {protocol} (Level {level_str})",
+            "name": equipment,
             "is_unilateral": False,
             "load_type": "BODYWEIGHT",
             "tracking_unit": tracking_unit,
             "is_conditioning": True,
-            "description": level_details.get("description", ""),
+            "description": f"{protocol} (Level {level_str})",
             "rounds": level_details.get("rounds", 1),
             "work_seconds": level_details.get("work_seconds"),
             "rest_seconds": level_details.get("rest_seconds"),
-            "is_benchmark": level_details.get("is_benchmark", False)
+            "is_benchmark": is_benchmark,
+            "target_intensity": target_intensity
         }]
 
-    def generate_session(self, knee_pain: int, energy: int, pattern_debts: Dict[str, int], conditioning_levels: Dict[str, int] = None) -> Dict[str, Any]:
+    def generate_session(self, knee_pain: int, energy: int, pattern_debts: Dict[str, int], conditioning_levels: Dict[str, int] = None, benchmarks: Dict[str, float] = None) -> Dict[str, Any]:
         """
         The master function that builds the entire workout.
         """
         if conditioning_levels is None:
             conditioning_levels = {}
+        if benchmarks is None:
+            benchmarks = {}
 
         self.current_state, self.archetype = self._evaluate_state(knee_pain, energy)
         self._resolve_main_pattern(pattern_debts)
@@ -198,19 +240,21 @@ class WorkoutResolver:
             
             for component_str in block.get("components", []):
                 if "CONDITIONING" in component_str:
-                    # Pass the updated variable here
-                    exercises = self._resolve_conditioning(component_str, conditioning_levels)
+                    # Pass the levels AND benchmarks down
+                    exercises = self._resolve_conditioning(component_str, conditioning_levels, benchmarks)
                     resolved_components.extend(exercises)
                     continue 
                 
                 exercises = self._parse_component(component_str)
                 resolved_components.extend(exercises)
                 
-            resolved_blocks.append({
-                "type": block.get("type"),
-                "label": block.get("label"),
-                "exercises": resolved_components
-            })
+            # Filter out empty blocks (like the RED day Accessory bug we caught earlier)
+            if resolved_components:
+                resolved_blocks.append({
+                    "type": block.get("type"),
+                    "label": block.get("label"),
+                    "exercises": resolved_components
+                })
             
         return {
             "metadata": {
