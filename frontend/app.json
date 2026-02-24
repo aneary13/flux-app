@@ -1,0 +1,23 @@
+{
+    "expo": {
+      "name": "FLUX",
+      "slug": "flux-app",
+      "version": "1.0.0",
+      "scheme": "flux",
+      "userInterfaceStyle": "light",
+      "plugins": [
+        "expo-router"
+      ],
+      "experiments": {
+        "typedRoutes": true
+      },
+      "ios": {
+        "supportsTablet": true
+      },
+      "android": {
+        "adaptiveIcon": {
+          "backgroundColor": "#F6F5F2"
+        }
+      }
+    }
+}
