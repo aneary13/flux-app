@@ -89,7 +89,27 @@ export default function HomeDashboard() {
     );
   }
 
-  if (!stateDocument) return null;
+  // Safety fallback if stateDocument somehow still doesn't exist
+  if (!stateDocument) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Typography variant="h3" color={theme.colors.stateRed}>
+          Connection Error
+        </Typography>
+        <Typography variant="body" color={theme.colors.textMuted} style={{ textAlign: 'center', marginTop: theme.spacing.md, marginBottom: theme.spacing.xl }}>
+          Could not reach the FLUX engine. Please check your connection and try again.
+        </Typography>
+        <Button 
+          title="Retry" 
+          onPress={() => {
+            setIsInitialLoad(true);
+            // Re-trigger the focus effect or just reload the app
+            router.replace('/'); 
+          }} 
+        />
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>

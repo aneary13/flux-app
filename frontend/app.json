@@ -1,23 +1,32 @@
 {
-    "expo": {
-      "name": "FLUX",
-      "slug": "flux-app",
-      "version": "1.0.0",
-      "scheme": "flux",
-      "userInterfaceStyle": "light",
-      "plugins": [
-        "expo-router"
-      ],
-      "experiments": {
-        "typedRoutes": true
+  "expo": {
+    "name": "FLUX",
+    "slug": "flux-app",
+    "version": "1.0.0",
+    "scheme": "flux",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F6F5F2"
       },
-      "ios": {
-        "supportsTablet": true
+      "package": "com.aneary13.fluxapp"
+    },
+    "extra": {
+      "router": {
+        "origin": false
       },
-      "android": {
-        "adaptiveIcon": {
-          "backgroundColor": "#F6F5F2"
-        }
+      "eas": {
+        "projectId": "7beebbd4-9c8e-402c-97bb-3bf9704aad20"
       }
     }
+  }
 }
