@@ -51,6 +51,19 @@ catalog:
       load: WEIGHTED
       unit: REPS
 
+  # --- LUNGE MOVEMENTS ---
+  - name: "DB Bulgarian Split Squat"
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: REPS
+
+  - name: "Lunge Iso Hold"
+    settings:
+      unilateral: true
+      load: WEIGHTED
+      unit: SECS
+
   # --- PUSH MOVEMENTS ---
   - name: "BB Bench Press"
     settings:

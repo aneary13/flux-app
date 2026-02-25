@@ -45,6 +45,13 @@ PULL:
     DEFAULT:
       - "Chest-supported DB Row"
 
+LUNGE:
+  ACCESSORY:
+    GREEN:
+      - "DB Bulgarian Split Squat"
+    ORANGE:
+      - "Lunge Iso Hold"
+
 RFD:
   HIGH:
     DEFAULT:
