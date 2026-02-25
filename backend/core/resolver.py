@@ -190,9 +190,10 @@ class WorkoutResolver:
 
         # 2. Benchmark Math & Target Intensity
         target_intensity = None
-        is_benchmark = level_details.get("is_benchmark", False)
+        is_benchmark = level_details.get("is_benchmark", False)  # Initialize to None to avoid undefined errors
 
         if protocol == "HIIT" and not is_benchmark:
+
             # Retrieve the benchmark watts from the user's state
             hiit_benchmark = benchmarks.get("HIIT_WATTS")
             
@@ -206,13 +207,20 @@ class WorkoutResolver:
             # SIT is an all-out sprint, no specific wattage calculation
             target_intensity = "MAX"
 
+        # Format conditioning description
+        description = {
+            "HIIT": f"High Intensity Interval Training (Level {level_str})",
+            "SIT": f"Sprint Interval Training (Level {level_str})",
+            "SS": "Steady State Training (Zone 2)"
+        }
+
         return [{
             "name": equipment,
             "is_unilateral": False,
             "load_type": "BODYWEIGHT",
             "tracking_unit": tracking_unit,
             "is_conditioning": True,
-            "description": f"{protocol} (Level {level_str})",
+            "description": description[protocol],
             "rounds": level_details.get("rounds", 1),
             "work_seconds": level_details.get("work_seconds"),
             "rest_seconds": level_details.get("rest_seconds"),

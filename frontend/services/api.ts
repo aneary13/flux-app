@@ -67,9 +67,14 @@ import {
           }), 
         }),
   
-    completeSession: (sessionId: string, payload: { notes: string }) => 
-      fetchApi<void>(`/sessions/${sessionId}/complete`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      }),
+      completeSession: (sessionId: string, payload: {
+        exercise_notes?: Record<string, string>;
+        summary_notes?: string | null;
+        anchor_pattern?: string | null;
+        completed_conditioning_protocol?: string | null;
+      }) => 
+        fetchApi<void>(`/sessions/${sessionId}/complete`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }),
   };

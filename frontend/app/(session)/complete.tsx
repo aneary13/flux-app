@@ -1,3 +1,4 @@
+// app/(session)/complete.tsx
 import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -19,7 +20,18 @@ const formatTime = (ms: number | undefined) => {
 
 export default function CompleteSessionScreen() {
   const router = useRouter();
-  const { sessionId, sessionData, loggedSets, clearSession, sessionStartTime, blockDurations } = useSessionStore();
+  
+  const { 
+    sessionId, 
+    sessionData, 
+    loggedSets, 
+    clearSession, 
+    sessionStartTime, 
+    blockDurations,
+    exerciseNotes,
+    summaryNotes
+  } = useSessionStore();
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- Calculate Summary Stats & Total Time ---
@@ -46,9 +58,44 @@ export default function CompleteSessionScreen() {
       router.replace('/');
       return;
     }
+    
     setIsSubmitting(true);
+    
     try {
-      await FluxAPI.completeSession(sessionId, { notes: "" });
+      // 1. Extract Anchor Pattern safely utilizing your strict type hierarchy
+      const anchorPattern = sessionData?.metadata.anchor_pattern;
+
+      // 2. Automatically detect if they completed conditioning
+      let completedConditioning: string | undefined = undefined;
+      const condBlock = sessionData?.blocks.find(b => b.type === 'CONDITIONING');
+      
+      if (condBlock && condBlock.exercises.length > 0) {
+        const condEx = condBlock.exercises[0];
+        const exId = condEx.id || condEx.name;
+        
+        // Did they actually finish at least 1 set of the bike/rower?
+        const didCompleteConditioning = loggedSets[exId]?.some(s => s && s.completed);
+        
+        if (didCompleteConditioning && condEx.description) {
+          // Parse "SS (Level 1)" into just "SS"
+          const match = condEx.description.match(/([A-Z]+)\s*\(Level\s*\d+\)/i);
+          if (match) {
+            completedConditioning = match[1].toUpperCase();
+          }
+        }
+      }
+
+      // 3. Build the strict payload matching your Python schema
+      const payload = {
+        exercise_notes: exerciseNotes || {},
+        summary_notes: summaryNotes || undefined,
+        anchor_pattern: anchorPattern,
+        completed_conditioning_protocol: completedConditioning
+      };
+
+      // 4. Fire it off to the API
+      await FluxAPI.completeSession(sessionId, payload);
+      
       clearSession();
       router.replace('/'); 
     } catch (error) {
@@ -84,7 +131,6 @@ export default function CompleteSessionScreen() {
                   <View style={styles.blockPill}>
                     <Typography variant="label" style={styles.blockPillText}>{block.type}</Typography>
                   </View>
-                  {/* Dynamic Block Time! */}
                   <Typography variant="body" color={theme.colors.textMuted}>
                     {formatTime(blockDurations[block.type])}
                   </Typography>
@@ -126,7 +172,6 @@ export default function CompleteSessionScreen() {
                   return (
                     <View key={exerciseId || `ex-${exIndex}`} style={styles.exerciseRow}>
                       <Typography variant="body" style={styles.exerciseName}>{exercise.name}</Typography>
-                      {/* Fixed Pluralization! */}
                       <Typography variant="body" color={theme.colors.textMuted}>
                         {setsLogged === 1 ? '1 set' : `${setsLogged} sets`}
                       </Typography>
@@ -144,7 +189,6 @@ export default function CompleteSessionScreen() {
       <View style={styles.footerContainer}>
         <View style={styles.statsRow}>
           <View style={styles.statColumn}>
-            {/* Dynamic Total Time! */}
             <Typography variant="h2">{formatTime(totalTimeMs)}</Typography>
             <Typography variant="caption" color={theme.colors.textMuted}>Total Time</Typography>
           </View>
@@ -171,100 +215,23 @@ export default function CompleteSessionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background, // F6F5F2
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: 80,
-    paddingBottom: 40, // Extra padding so it doesn't collide with the footer
-  },
-  
-  // Header
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#8FA08A', // A muted sage green matching your mockup
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  title: {
-    textAlign: 'center',
-  },
-
-  // Block Cards
-  blockCard: {
-    marginBottom: theme.spacing.md,
-  },
-  blockHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  blockHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  blockPill: {
-    backgroundColor: theme.colors.actionPrimary, // Dark grey/black
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: theme.radii.pill,
-  },
-  blockPillText: {
-    color: theme.colors.surface,
-    fontWeight: 'bold',
-    fontSize: 12,
-    letterSpacing: 0.5,
-  },
-  exerciseList: {
-    gap: theme.spacing.sm,
-  },
-  exerciseRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  exerciseName: {
-    color: theme.colors.textPrimary,
-  },
-
-  // Footer / Stats Area
-  footerContainer: {
-    backgroundColor: '#EBEBEB', // Slightly darker than background for contrast
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.xl,
-    paddingBottom: 40, // Safe area bottom
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.xl,
-    paddingHorizontal: theme.spacing.md,
-  },
-  statColumn: {
-    alignItems: 'center',
-  },
-  homeButton: {
-    height: 56,
-  },
-  loadingContainer: {
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-  }
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingHorizontal: theme.spacing.xl, paddingTop: 80, paddingBottom: 40 },
+  headerContainer: { alignItems: 'center', marginBottom: theme.spacing.xl },
+  iconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#8FA08A', justifyContent: 'center', alignItems: 'center', marginBottom: theme.spacing.md },
+  title: { textAlign: 'center' },
+  blockCard: { marginBottom: theme.spacing.md },
+  blockHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md },
+  blockHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+  blockPill: { backgroundColor: theme.colors.actionPrimary, paddingVertical: 4, paddingHorizontal: 12, borderRadius: theme.radii.pill },
+  blockPillText: { color: theme.colors.surface, fontWeight: 'bold', fontSize: 12, letterSpacing: 0.5 },
+  exerciseList: { gap: theme.spacing.sm },
+  exerciseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  exerciseName: { color: theme.colors.textPrimary },
+  footerContainer: { backgroundColor: '#EBEBEB', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: theme.spacing.xl, paddingTop: theme.spacing.xl, paddingBottom: 40 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: theme.spacing.xl, paddingHorizontal: theme.spacing.md },
+  statColumn: { alignItems: 'center' },
+  homeButton: { height: 56 },
+  loadingContainer: { height: 56, justifyContent: 'center', alignItems: 'center' }
 });
