@@ -1,38 +1,32 @@
 {
   "expo": {
-    "name": "flux-frontend",
-    "slug": "flux-frontend",
+    "name": "FLUX",
+    "slug": "flux-app",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "scheme": "flux",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "assetBundlePatterns": [
-      "**/*"
+    "plugins": [
+      "expo-router"
     ],
+    "experiments": {
+      "typedRoutes": true
+    },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.flux.app"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F6F5F2"
       },
-      "package": "com.flux.app"
+      "package": "com.aneary13.fluxapp"
     },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "bundler": "metro"
-    },
-    "scheme": "flux",
-    "plugins": [
-      "expo-router",
-      "expo-asset"
-    ]
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "7beebbd4-9c8e-402c-97bb-3bf9704aad20"
+      }
+    }
   }
 }

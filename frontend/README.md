@@ -1,81 +1,82 @@
-# FLUX Frontend
+# FLUX - Frontend Application
 
-React Native application built with Expo, TypeScript, Expo Router, NativeWind v4, TanStack Query, and Axios.
+This is the React Native (Expo) frontend for **FLUX**, a premium biological training engine. 
 
-## Prerequisites
+The app acts as a "Thin Client"—it focuses on delivering a beautiful, offline-tolerant, and highly responsive user experience, while deferring complex progression math and session generation to the FastAPI backend.
 
-- Node.js 18+ and npm/yarn
-- Expo CLI (install globally: `npm install -g expo-cli` or use `npx`)
-- Backend API running on `http://localhost:8000`
+## 🛠 Tech Stack
+* **Framework:** React Native / Expo
+* **Routing:** Expo Router (File-based routing)
+* **State Management:** Zustand
+* **Language:** TypeScript
+* **Build System:** EAS (Expo Application Services)
 
-## Installation
+## 📁 Project Structure
 
-1. Install dependencies:
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
-
-2. Start the development server:
-   ```bash
-   npm start
-   # or
-   yarn start
-   ```
-
-3. Run on iOS simulator:
-   ```bash
-   npm run ios
-   ```
-
-4. Run on Android emulator:
-   ```bash
-   npm run android
-   ```
-
-## Project Structure
-
-```
+```text
 frontend/
-├── app/                 # Expo Router file-based routes
-│   ├── _layout.tsx     # Root layout with providers
-│   ├── index.tsx       # Home screen
-│   └── check-in.tsx    # Check-in screen
-├── src/
-│   └── api/
-│       └── client.ts   # Axios instance & QueryClient setup
-├── global.css          # Tailwind CSS directives
-├── tailwind.config.js  # Tailwind configuration
-├── metro.config.js     # Metro bundler config with NativeWind
-└── babel.config.js     # Babel config with NativeWind plugin
+├── app/                     # Expo Router screens and layouts
+│   ├── (session)/           # Active workout flow (check-in, active, complete)
+│   ├── _layout.tsx          # Global app shell
+│   └── index.tsx            # Home Dashboard (Biological State)
+├── components/              # UI Components
+│   ├── core/                # Design system primitives (Button, Card, Typography)
+│   └── domain/              # Feature-specific components (ExerciseCard, ChecklistCard)
+├── services/                # API communication
+│   └── api.ts               # Fetch wrappers and FastAPI endpoint definitions
+├── store/                   # Zustand State Management
+│   ├── useSessionStore.ts   # Ephemeral state for active workouts and timers
+│   └── useUserStore.ts      # Persistent-ish state for user biological readiness
+├── theme/                   # Centralized Design System
+│   └── index.ts             # Colors, spacing, radii, and readiness hex codes
+└── types/                   # TypeScript interfaces
+    └── api.d.ts             # Strict typings mapping to backend Pydantic models
 ```
 
-## Configuration
+## 🧠 State Management
 
-### API Client
+The application relies on **Zustand** for state management, split into two distinct domains to prevent unnecessary re-renders:
 
-The API client is configured in `src/api/client.ts`:
-- **iOS Simulator**: Uses `http://localhost:8000`
-- **Android Emulator**: Uses `http://10.0.2.2:8000` (Android emulator's localhost alias)
+1. `useUserStore`: Holds the user's current "Biological State" (Pattern Debts and Conditioning Levels). It is refreshed via `useFocusEffect` every time the user navigates back to the Home screen (`app/index.tsx`).
+2. `useSessionStore`: Handles the highly dynamic state of an active workout. It logs completed sets, manages background block timers, and gathers notes. It is intentionally cleared (`clearSession()`) upon completing a workout.
 
-### NativeWind v4
+## 🎨 Design System
+The UI adheres to a "Premium Biological Tech" aesthetic. We avoid raw numbers for biological states where possible, favoring color-coded readiness bars defined in theme/index.ts:
 
-- Metro config is wrapped with `withNativeWind()` from `nativewind/metro`
-- Global CSS is imported in `app/_layout.tsx`
-- Tailwind classes can be used directly in JSX with the `className` prop
+* **Sage Green** (`#8FA58A`): Fully Primed
+* **Earthy Sand** (`#D4A373`): Priming / Recovering
+* **Dusty Rose** (`#CD7B7B`): Fatigued / Engine Cooling
 
-### TanStack Query
+## 🚀 Usage & Development Instructions
 
-- QueryClient is configured with sensible defaults
-- Wrapped in `QueryProvider` in the root layout
-- Use `useQuery` hook for data fetching
+### 1. Environment Setup
 
-## Features
+Create a `.env` file in the `frontend/` root directory. Do **not** commit this file.
 
-- ✅ Expo Router file-based routing
-- ✅ NativeWind v4 for styling (Tailwind CSS)
-- ✅ TanStack Query for data fetching
-- ✅ Axios for HTTP requests
-- ✅ Platform-aware API base URL
-- ✅ TypeScript support
+```
+# For local dev via tunneling or direct Render URL
+EXPO_PUBLIC_API_URL=https://your-flux-backend.onrender.com
+```
+
+### 2. Running Locally
+
+Install dependencies and start the Expo development server:
+
+```bash
+npm install
+npx expo start
+```
+
+*Note: If testing on a physical device on a strict Wi-Fi network, run `npx expo start --tunnel` to bypass AP isolation.*
+
+### 3. Building for Production (Android APK)
+
+The app is configured via `eas.json` to build a standalone Android `.apk` for direct installation. The production API URL is baked into the EAS preview profile.
+
+To trigger a cloud build:
+
+```bash
+eas build -p android --profile preview
+```
+
+Once the build completes, scan the generated QR code with your Android device to download and install the app.

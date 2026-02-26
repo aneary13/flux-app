@@ -1,117 +1,95 @@
-# FLUX Agile Trainig Logic (v2.0)
+# FLUX Agile Training Logic (v3.0)
 
 ## 1. Core Philosophy
-The system does not follow a linear calendar. Instead, it acts as a **Session Composer**, building a bespoke workout each day based on **Biological Constraints** (Readiness) and **Training Inventory** (Debt).
-
-*   **Satisficing:** We do not maximize every session; we aim for the Minimum Effective Dose (MED) to maintain qualities.
-*   **Agile:** If a specific pattern (e.g., Squat) is contraindicated by pain, the system automatically pivots to the next best action or modifies the exercise, rather than cancelling the session.
+The system is a **Non-Linear Session Composer**. It does not follow a static calendar. Instead, it generates a bespoke workout each day by triangulating:
+1.  **Biological State:** The user's current capacity (Pain & Energy).
+2.  **Training Inventory:** The "freshness" of movement patterns (Squat, Hinge, Push, Pull).
+3.  **Role-Based Selection:** A strict separation between an exercise's *Identity* (what it is) and its *Role* (is it a Main Lift today?).
 
 ---
 
 ## 2. The Input Layer (Daily Triage)
+Every session begins with a check-in that determines the **Traffic Light State**.
 
-Before generating a session, the system evaluates three variables:
+### A. Inputs
+* **Knee Pain (0–10):** A specific constraint for lower-body loading.
+* **Energy Level (0–10):** A systemic constraint for volume and intensity.
 
-### A. Tendon Readiness (Traffic Light)
-*   **GREEN (8–10):** Full Capacity. High load, high impact, reactive work permitted.
-*   **ORANGE (5–7):** Modified. Controlled tempo, reduced range, low impact.
-*   **RED (<5):** Intervention. No knee loading. Focus on Isometrics and Upper Body.
-
-### B. Systemic Energy (CNS Status)
-*   **HIGH (8–10):** Developmental. Full complexity/intensity permitted.
-*   **MEDIUM (5–7):** Retainment. Moderate volume/intensity.
-*   **LOW (<5):** Restorative. Active recovery or rest only.
-
-### C. Inventory Debt (The Memory)
-Calculated as: `Days Since Last Completed [Pattern]`.
-*   *Global Patterns (Main Lifts):* SQUAT, HINGE, PUSH, PULL.
-*   *Accessory Patterns:*
-    *   PUSH (Vertical / Horizontal)
-    *   PULL (Vertical / Horizontal)
-    *   HINGE (Hip Extension / Knee Flexion)
-    *   LUNGE
-    *   CORE (Rotation / Lateral Flexion / Linear) — *Note: Core debt is tracked here but executed in the Prep Block.*
+### B. The Traffic Light Logic (`logic.yaml`)
+The system maps these inputs to a discrete state:
+* **GREEN (Full Intensity):** Low Pain (<4) AND High Energy (>6).
+    * *Focus:* Heavy loading, high impact, complex movements.
+* **ORANGE (Modified Volume):** Moderate Pain (4–6) OR Low Energy (<6).
+    * *Focus:* Controlled tempo, reduced range of motion, moderate volume.
+* **RED (Recovery Focus):** High Pain (>6).
+    * *Focus:* No heavy spinal loading. Isometrics. Blood flow.
 
 ---
 
-## 3. Level 1 Logic: Session Type Selector
+## 3. The Session Engine (Logic Flow)
+The engine generates one of two distinct session types based on the Traffic Light State.
 
-The engine first determines the broad category of the day.
+### Scenario A: The Performance Session (Green/Orange)
+If the state is **GREEN** or **ORANGE**, the engine builds a standard "Gym Session" with 5 distinct blocks.
 
-1.  **REST:** If Energy < 5.
-2.  **GYM:** If Gym Pattern Debt > Conditioning Debt (and Energy ≥ 5).
-3.  **CONDITIONING:** If Conditioning Debt > Gym Pattern Debt.
+**The Selection Algorithm:**
+1.  **Calculate Debt:** Identify which Main Pattern (Squat, Hinge, Push, Pull) has been neglected the longest.
+2.  **Select Main Lift:** Look up the `MAIN` exercise for that pattern in `selections.yaml` for the current color (e.g., *Green Squat* -> *Back Squat*).
+3.  **Select Accessories:** Look up the pre-defined complementary accessories for that Main Pattern.
+4.  **Append Conditioning:** Select a protocol based on the current energy level.
+
+**The Block Structure (`sessions.yaml`):**
+1.  **PREP:** Movement preparation specific to the Main Pattern (e.g., Hip Flow).
+2.  **POWER:** Neural priming.
+    * *Green:* Ballistic/Plyometric (e.g., Box Jumps).
+    * *Orange:* Low-impact Power (e.g., Med Ball Throws).
+3.  **STRENGTH (Main):** The primary compound lift of the day.
+    * *Green:* Heavy Compound (e.g., Back Squat).
+    * *Orange:* Tempo/Variation (e.g., Tempo Goblet Squat).
+4.  **ACCESSORIES:** Supplemental volume.
+    * *Structure:* Always 2 exercises (Accessory 1 + Accessory 2).
+    * *Logic:* Hard-coded to balance the Main Lift (e.g., Squat Main -> Pull + Hinge Accessories).
+5.  **CONDITIONING:** Metabolic work.
+    * *Green/Orange:* Intervals or Capacity (e.g., "6 x 10s on / 40s off").
+
+### Scenario B: The Recovery Session (Red)
+If the state is **RED**, the engine switches to a "Repair" archetype. The goal is to retain tissue quality without aggravating pain.
+
+**The Block Structure:**
+1.  **MOBILITY (Checklist):** A flow of restorative movements (e.g., Cat Cow, 90/90).
+2.  **ISOMETRICS (Timed):** Long-duration static holds to manage tendon pain (e.g., Spanish Squat Hold, 5 x 45s).
+3.  **ACCESSORIES:** Low-impact isolation work (e.g., Glute Bridges, Core).
+4.  **CONDITIONING:** Low-intensity steady state (Zone 2) to promote blood flow.
 
 ---
 
-## 4. Level 2 Logic: The Session Composer (Gym)
+## 4. The Data Architecture (Schema 3.0)
 
-If a **GYM** session is selected, the system builds it block-by-block using the following logic:
+### A. Configuration Files
+The brain of the logic is split into specific YAML files:
+* **`library.yaml`:** The "Grocery Store." Defines the *Identity* of every exercise (Name, Default Unit, Category).
+* **`selections.yaml`:** The "Menu." Defines the *Role* of exercises. Explicitly maps `Pattern -> Tier -> Color -> Exercise`.
+* **`sessions.yaml`:** The "Recipe." Defines the block structure (Prep -> Power -> Main...) for each archetype.
 
-### Block 1: Prep & Prime
-*   **Warmup:** General movement prep.
-*   **Tendon Iso:** Mandatory Patellar Isometric (Standardized).
-*   **Core:** Selects **1 Core Exercise** based on highest debt:
-    *   *Core Patterns:* Anti-Rotation, Anti-Lateral Flexion, Linear (Flex/Ext).
+### B. Smart Input Logic (Frontend Contract)
+The system "Enriches" every block with metadata so the UI knows how to track it:
 
-### Block 2: Power (Neural)
-Selected based on **Tendon Readiness** (Traffic Light):
-*   **GREEN:** `RFD_HIGH` (e.g., Depth Jumps, Sprints, Oly Lifts).
-*   **ORANGE:** `RFD_LOW` (e.g., KB Swings, Med Ball Throws).
-*   **RED:** `RFD_UPPER` (e.g., Seated Med Ball Chest Pass, Battle Ropes) OR Skip.
-
-### Block 3: Main Lift (Strength)
-*   **Selection:** Identify the Broad Pattern (SQUAT, HINGE, PUSH, PULL) with the **Highest Debt**.
-*   **Constraint Check:** Look up the specific exercise for `[Pattern] + [MAIN] + [Current State]`.
-    *   If the result is specific exercise (e.g., "Box Squat") -> **Select it.**
-    *   If the result is `SKIP` (e.g., Squat on a Red Day) -> **Discard Pattern.** Move to the Pattern with the *next highest debt*.
-
-### Block 4: Accessories (Hypertrophy/Structural)
-Accessories are **Hard-Coded Constraints** based on the chosen Main Lift to ensure systemic balance. The specific *variant* of the accessory is determined by Tendon Readiness.
-
-| Selected Main Lift | Accessory 1 (Pattern) | Accessory 2 (Pattern) |
+| Mode | Triggers | UI Behavior |
 | :--- | :--- | :--- |
-| **SQUAT** | PULL (Horizontal) | HINGE (Hip Extension) |
-| **PUSH** (General) | SQUAT | PULL (Vertical) |
-| **HINGE** | PUSH (Horizontal) | LUNGE |
-| **PULL** (General) | HINGE (Knee Flexion) | PUSH (Vertical) |
+| **WEIGHTED_REPS** | `unit='REPS'`, `is_bw=False` | **Weight (kg)** + **Reps** + **RPE** |
+| **WEIGHTED_TIME** | `unit='SECS'`, `is_bw=False` | **Weight (kg)** + **Time (s)** + **RPE** |
+| **BODYWEIGHT_REPS** | `unit='REPS'`, `is_bw=True` | **"Bodyweight + [ ] kg"** + **Reps** |
+| **BODYWEIGHT_TIME** | `unit='SECS'`, `is_bw=True` | **"Bodyweight + [ ] kg"** + **Time (s)** |
+| **CONDITIONING** | `block_type='CONDITIONING'` | **Multi-Row Input:** `rounds` determine row count. Input **Watts** + **Distance**. |
+| **CHECKLIST** | `block_type='PREP'`/`MOBILITY` | Simple **Checkbox**. No load tracking. |
 
-*Note: Main Lifts are generic "PUSH/PULL". Accessories are specific (Horizontal/Vertical) to ensure plane balance.*
-
-### Block 5: The Snack (Metabolic)
-*   **Optional:** If Energy is High/Med, add 10-15m of low-CNS conditioning (e.g., AirBike, Rower, SkiErg).
-
----
-
-## 5. Level 3 Logic: Conditioning Session
-If a **CONDITIONING** session is selected, filter by Metabolic Debt + Tendon Status.
-
-*   **AEROBIC_BASE:** (Long/Slow). Always available.
-*   **AEROBIC_POWER:** (Intervals). Green=Run; Orange=Incline Walk; Red=Bike.
-*   **ALACTIC:** (Max Speed). Green=Sprint; Orange=Sled; Red=Bike Sprint.
-*   **LACTIC:** (Capacity). Green=Shuttles; Orange=Rower; Red=AirBike.
+### C. Accessory Grouping
+* **Backend:** Returns `ACCESSORY_1` and `ACCESSORY_2` as distinct blocks to allow precise exercise selection.
+* **Frontend:** Automatically groups these into a single "ACCESSORIES" page/card for a streamlined user experience.
 
 ---
 
-## 6. The Exercise Matrix (Library Architecture)
-The database/config is organized as a 3D Matrix: `[Pattern] x [Tier] x [State]`.
-
-**Example Entry: SQUAT**
-
-| Tier          | Green State | Orange State       | Red State          |
-| :------------ | :---------- | :----------------- | :----------------- |
-| **MAIN**      | Back Squat  | Tempo Goblet Squat | **SKIP**           |
-| **ACCESSORY** | Leg Press   | Split Squat        | Spanish Squat Hold |
-
-**Example Entry: PUSH**
-
-| Tier                 | Green State       | Orange State    | Red State                      |
-| :------------------- | :---------------- | :-------------- | :----------------------------- |
-| **MAIN**             | Bench Press       | Bench Press     | Larsen Press (Feet Up)         |
-| **ACCESSORY (Vert)** | DB Overhead Press | Seated DB Press | Landmine Press (Half Kneeling) |
-
----
-
-## 7. Removed Constraints (Simplification)
-*   **Tendon Lag:** Removed. We rely on the natural rotation of patterns (Squat debt resets to 0 after training) and daily subjective readiness to manage load, rather than forcing a 24-hour lag.
-*   **Lunge Main Lift:** Removed. Lunges are classified strictly as **Accessory** movements.
+## 5. Summary of Logic
+* **No Randomization:** Every workout is deterministic based on the intersection of **State** (Red/Orange/Green) and **History** (Debt).
+* **Identity vs. Role:** An exercise like "Split Squat" can be a *Main Lift* on an Orange Day, but an *Accessory* on a Green Day. This is controlled via `selections.yaml`.
+* **Red Day Safety:** The Red state hard-switches to a completely different session structure (Mobility/Iso), ensuring the user never faces a heavy barbell when their biological markers are low.
