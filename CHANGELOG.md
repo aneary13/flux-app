@@ -8,168 +8,130 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Modular configuration**: Backend config split from a single `program_config.yaml` into five domain YAML files in `backend/config/`: `library.yaml` (exercise catalog and metadata), `logic.yaml` (thresholds, pattern_priority, power_selection, relationships, patterns), `sessions.yaml` (GYM and RECOVERY session structures), `selections.yaml` (exercise mappings by pattern/tier/state), `conditioning.yaml` (protocols and equipment). New `src.config` module with Pydantic models and `load_config(config_dir)`.
-- **Red Day (Recovery) sessions**: When readiness state is RED, the recommend endpoint returns a dedicated recovery session: mobility flow (check-off), repair isometrics (tracked), 1 Push + 1 Pull (opposite planes, plane balancing from PatternHistory), and Zone 2 / Steady State conditioning. No separate conditioning block is appended for RED.
-- **Exercise seed from catalog**: `POST /api/v1/exercises/seed` now uses `config.library.catalog` as the source of truth; maps `settings.unit` (SECS/WATTS/REPS), `settings.unilateral`, and `settings.load` (BODYWEIGHT) to `Exercise` fields.
+
+- **Authentication Prep**: API and Database schema structured to support isolated user states, currently stubbed with `DUMMY_USER_ID`.
+
+---
+
+## [0.8.0] - 2026-02-26
+
+### Added
+
+- **Decoupled Architecture**: Transitioned the application to a 3-pillar system: React Native (Frontend), FastAPI (Backend), and Supabase (Database).
+- **Hybrid Relational/JSON Schema**: Introduced a `metadata` JSONB column in the `workout_sets` Supabase table to capture sparse, protocol-specific conditioning data (e.g., `avg_watts`, `peak_hr`, `protocol_level`) without polluting standard strength columns.
+- **Frontend State Management**: Implemented Zustand with dual stores: `useUserStore` for persistent biological state tracking and `useSessionStore` for highly dynamic active-workout lifecycle management.
+- **Premium UI System**: Implemented the "Biological Tech" aesthetic using NativeWind (Sage Green `#8FA58A`, Earthy Sand `#D4A373`, Dusty Rose `#CD7B7B`).
+- **Conditioning Progression Engine**: Added linear progression tracking for conditioning protocols (HIIT, SIT, SS). Completing a protocol automatically levels up the user in their isolated `state` document.
+- **Modern Package Management**: Transitioned backend fully to `uv` (via `pyproject.toml` and `uv.lock`), including `uv export` workflows for Render deployments.
+- **Supabase Seeding**: Created `scripts/seed_db.py` to seamlessly upsert YAML-derived "Brain" configs and exercise catalogs directly into the remote database.
+- **Modular configuration**: Backend config split from a single `program_config.yaml` into five domain YAML files in `backend/config/`.
+- **Red Day (Recovery) sessions**: When readiness state is RED, the engine automatically generates a dedicated recovery session with mobility flows, repair isometrics, and Zone 2 conditioning.
 
 ### Changed
-- **Engine**: `WorkoutEngine` now accepts a config directory and uses `load_config()`; reads state thresholds from `config.logic.thresholds`; uses `config.selections` for exercise lookup (replacing `config.library` for selection); uses `config.logic` for pattern_priority, relationships, power_selection, patterns; Red Day uses `config.sessions.RECOVERY.mobility_flow` and `repair_isometrics`.
-- **Seeds**: Conditioning protocols loaded from `config.conditioning.protocols` (conditioning.yaml) via `load_config` in `src.db.seeds`.
-- **Models**: Removed legacy config models from `src.models` (PatternConfig, ProgramConfig, etc.); config lives in `src.config`. Input/output models (Readiness, SessionPlan, ExerciseBlock, etc.) remain in `src.models`.
-- **API deps**: `get_engine()` now passes `CONFIG_DIR` (config directory) to `WorkoutEngine` instead of a single config file path.
-- **Tests**: Engine tests updated to write all five modular config files into a temp directory; fixed logic.yaml thresholds indentation so `thresholds` parses as a dict.
+
+- **Database ORM**: Completely removed `SQLModel` and `Alembic`. The backend now uses the official `supabase-py` client for all CRUD operations, leveraging PostgreSQL Row Level Security (RLS) instead of application-layer ORM models.
+- **Engine Logic**: `WorkoutResolver` now pulls its rules ("The Brain") directly from the `user_configs` table in Supabase rather than local files, allowing for dynamic, per-user engine adjustments in the future.
+- **Documentation**: Consolidated `DEPLOY.md` into highly specific, directory-level `README.md` files to adhere to the DRY principle.
+
+### Removed
+
+- `backend/alembic/` directory and all local SQLite/Alembic migration history.
+- `DEPLOY.md` (Superseded by modular READMEs).
 
 ---
 
 ## [0.7.0] - 2026-02-10
 
 ### Added
+
 - **Complete Workout (feedback loop)**:
-  - `POST /api/v1/workouts` to log completed sessions with sets (exercise_name, weight_kg, reps, RPE). Persists `WorkoutSession` (UUID, started_at, completed_at, readiness_score, notes) and `WorkoutSet`; upserts `PatternInventory` so pattern debt resets for performed exercises.
-  - Recommend flow now builds training history from `PatternInventory` (grouped by date) instead of session records.
-  - Pydantic schemas `WorkoutSessionCreate`/`WorkoutSessionRead` and service `log_completed_session` in `src/services/workout.py`.
-- **Database**: New/updated schema via migrations: `PatternInventory` table; `WorkoutSession`/`WorkoutSet` with UUID PKs and new fields. Second migration alters workout/pattern timestamps to TIMESTAMPTZ (timezone-aware) to fix asyncpg errors when frontend sends ISO 8601 with timezone.
-- **Pattern priority**: Config key `pattern_priority` (e.g. SQUAT, PUSH, HINGE, PULL) and engine sort by (-debt, priority index) so tied main-pattern debts follow an Upper/Lower rotation.
+  - `POST /api/v1/workouts` to log completed sessions with sets. Persists `WorkoutSession` and `WorkoutSet`; upserts `PatternInventory`.
+  - Recommend flow builds training history from `PatternInventory`.
+- **Database**: New schema via migrations: `PatternInventory` table; `WorkoutSession`/`WorkoutSet`. Fixed asyncpg timezone errors.
+- **Pattern priority**: Config key `pattern_priority` (e.g. SQUAT, PUSH, HINGE, PULL) for Upper/Lower rotation tie-breaking.
 
 ### Changed
-- Workout recommendation uses `PatternInventory` as the source of pattern history; completing a workout updates inventory and resets debt for those patterns.
+
+- Workout recommendation uses `PatternInventory` as the source of pattern history.
 
 ---
 
 ## [0.6.0] - 2026-01-27
 
 ### Added
+
 - **Agile Training Logic v2.0 (Phase 6)**:
-  - Pattern debt tracking: days since last performance per pattern; defaults to 100 when never performed.
-  - Session type selection (Level 1): REST when energy &lt; 5, else GYM or CONDITIONING based on gym vs conditioning debt.
-  - Block-by-block session composition: PREP (PATELLAR_ISO + CORE), POWER (RFD), STRENGTH (main lift), ACCESSORIES from relationships.
-  - Configurable **PATELLAR_ISO** in `program_config.yaml` so the first exercise (e.g. "SL Wall Sit") is configurable per state.
-  - `session_structure` in config defining PREP, POWER, STRENGTH, ACCESSORIES components.
-  - New config schema: `patterns`, `relationships` (PATTERN:TIER), `library` (including CORE tiers, RFD, PATELLAR_ISO), `power_selection`, `session_structure`, `states`.
-  - Backward compatibility: SessionPlan computed fields `exercises`, `session_name`, `archetype` for existing frontend.
-- Database: `WorkoutSession.impacted_patterns` (JSON) and `session_type`; migration for pattern tracking.
-- API: Workout recommendation uses `impacted_patterns` from history (with `None`/empty handling).
+  - Pattern debt tracking defaults to 100 when never performed.
+  - Session type selection: REST when energy < 5, else GYM or CONDITIONING.
+  - Block-by-block session composition: PREP, POWER, STRENGTH, ACCESSORIES.
+  - Configurable **PATELLAR_ISO**.
+  - New config schema: `patterns`, `relationships` (PATTERN:TIER), `library`, `power_selection`, `session_structure`, `states`.
 
 ### Changed
+
 - Replaced archetype/session-based selection with pattern-debt and library-based composition.
-- Removed `power_library`; RFD exercises live under `library.RFD` (HIGH/LOW/UPPER) with state selection via `power_selection`.
 - Relationships format is now `PATTERN:TIER` (e.g. `PULL:ACCESSORY_HORIZONTAL`).
-- RFD block uses all exercises for the selected type (not a single random choice).
 
 ### Fixed
-- SQLModel: removed `nullable=True` from `Field()` when using `sa_column` to fix Alembic startup error.
-- Test suite updated for v2.0 config and engine (pattern debt, skip logic, relationship logic, backward compat).
+
+- SQLModel: removed `nullable=True` from `Field()` when using `sa_column`.
 
 ---
 
 ## [0.5.0] - 2026-01-21
 
 ### Added
+
 - **Deployment Infrastructure (Phase 5)**:
   - Backend deployment configuration for Render.com.
-  - Production start script (`backend/start.sh`) with automatic database migrations.
-  - `DEPLOY.md` guide covering Render setup and Supabase connection specifics.
-  - Frontend environment variable support (`EXPO_PUBLIC_API_URL`) for switching between Localhost and Production.
+  - Frontend environment variable support (`EXPO_PUBLIC_API_URL`).
 
 ### Fixed
-- **Render Build Failures**: Updated `requirements.txt` generation command to use `--no-emit-project`. This prevents local file paths from breaking cloud builds.
-- **Database Connection Errors**: Resolved `[Errno 8]` DNS errors by mandating the use of Supabase Session Pooler URLs (Port 6543) for IPv4 compatibility on Render and local networks.
-- **Frontend Networking**: Resolved physical device connection timeouts by adding documentation for Expo Tunnel mode (`--tunnel`).
 
-### Changed
-- Updated API Client in frontend to prioritize `EXPO_PUBLIC_API_URL` over platform defaults.
-- Updated `README.md` with comprehensive troubleshooting steps for "Cold Starts" and networking issues.
+- **Render Build Failures**: Updated `requirements.txt` generation command to use `--no-emit-project`.
+- **Database Connection Errors**: Resolved `[Errno 8]` DNS errors by mandating Supabase Session Pooler URLs (Port 6543).
 
 ---
 
 ## [0.4.0] - 2026-01-20
 
 ### Added
+
 - **Frontend Application (Phase 4)**:
   - React Native Expo application with TypeScript and Expo Router.
   - NativeWind v4 integration for Tailwind CSS styling.
-  - TanStack Query (React Query) for data fetching and caching.
-  - Axios HTTP client with platform-aware base URL configuration.
-  - User ID persistence using AsyncStorage and expo-crypto.
-  - Automatic `X-User-Id` header injection via Axios interceptors.
-  - Daily Readiness Check-In screen with interactive number selectors.
-  - Workout Plan display screen with loading, success, and error states.
-  - Reusable `NumberSelector` component with flex-wrap button layout.
-  - Type-safe API client with TypeScript interfaces (`SessionPlan`, `ReadinessCheckInResponse`).
-  - Platform detection for Android emulator (`10.0.2.2`) vs iOS simulator (`localhost`).
-- Frontend project structure in `frontend/` directory.
-- Comprehensive error handling for 404 (Rest Day) and other API errors.
-- Modern UI with card-based layouts, rounded corners, and blue/green color scheme.
-
-### Changed
-- Updated project structure to include `frontend/` directory.
-- Added frontend dependencies: `expo`, `expo-router`, `nativewind`, `@tanstack/react-query`, `axios`, `expo-crypto`, `@react-native-async-storage/async-storage`.
+  - TanStack Query (React Query) for data fetching.
+  - User ID persistence using AsyncStorage.
+  - Daily Readiness Check-In screen and Workout Plan display screen.
 
 ---
 
 ## [0.3.0] - 2026-01-20
 
 ### Added
+
 - **API Layer (Phase 3)**:
   - FastAPI application with RESTful endpoints.
-  - Dependency injection system for database sessions, engine instances, and user identification.
-  - Readiness check-in endpoint (`POST /api/v1/readiness/check-in`) with upsert logic.
-  - Exercise management endpoints (`GET /api/v1/exercises/`, `POST /api/v1/exercises/seed`).
-  - Workout recommendation endpoint (`POST /api/v1/workouts/recommend`).
+  - Readiness check-in endpoint and Exercise management endpoints.
   - CORS middleware for frontend integration.
-  - Lifespan context manager for application startup/shutdown.
-  - Health check endpoint (`GET /`).
-  - User ID extraction from `X-User-Id` header (ready for authentication upgrade).
-  - LRU cache optimization for WorkoutEngine (YAML parsed once at startup).
-- API documentation via Swagger UI and ReDoc.
-- Comprehensive error handling with appropriate HTTP status codes.
-
-### Changed
-- Updated project structure to include `src/api/` directory with routes and dependencies.
-- Added API dependencies: `fastapi`, `uvicorn[standard]`.
-- Improved separation of concerns: Pydantic models for I/O, SQLModel for database persistence.
+  - API documentation via Swagger UI.
 
 ---
 
 ## [0.2.0] - 2026-01-20
 
 ### Added
-- **Database Layer (Phase 2)**:
-  - SQLModel database models for persistence:
-    - `Exercise` table (reference data for exercises).
-    - `DailyReadiness` table (user readiness logs with composite unique constraint).
-    - `WorkoutSession` table (workout session logs).
-    - `WorkoutSet` table (granular set data with relationships).
-  - Async database session management (`src/db/session.py`).
-  - SQLModel relationships for easy data navigation.
-  - Alembic integration for database migrations with async support.
-  - Environment variable configuration via `.env` file.
-  - `.env.example` template for database connection strings.
-- Database migration infrastructure with async SQLModel support.
-- Support for PostgreSQL via asyncpg driver.
 
-### Changed
-- Updated project structure to include `src/db/` directory.
-- Added database dependencies: `sqlmodel`, `alembic`, `asyncpg`, `python-dotenv`, `greenlet`.
+- **Database Layer (Phase 2)**:
+  - SQLModel database models for persistence.
+  - Async database session management.
+  - Alembic integration for database migrations.
 
 ---
 
 ## [0.1.0] - 2026-01-19
 
 ### Added
+
 - Initial project structure.
 - WorkoutEngine with state determination and session generation.
-- Pydantic models for configuration, input, and output.
-- Test suite for models and engine.
-- Configuration system with YAML-based program config.
-- Pull request template.
-- Changelog file.
-
-[Unreleased]: https://github.com/aneary13/flux-app/compare/v0.7.0...HEAD
-[0.7.0]: https://github.com/aneary13/flux-app/compare/v0.6.0...v0.7.0
-[0.6.0]: https://github.com/aneary13/flux-app/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/aneary13/flux-app/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/aneary13/flux-app/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/aneary13/flux-app/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/aneary13/flux-app/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/aneary13/flux-app/releases/tag/v0.1.0
