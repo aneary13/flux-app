@@ -1,47 +1,52 @@
 import { create } from 'zustand';
-import { UserState } from '../types/api';
+import { UserState, GenerateSessionRequest, MovementPattern } from '../types/api';
 
 interface UserStoreState {
-  // Authentication
-  userId: string | null; // Defaults to null, will hold our test UUID
-  
-  // Global Biological State
-  stateDocument: UserState | null; // Holds pattern_debts and conditioning_levels
-  
-  // App Readiness
-  isHydrated: boolean; // Useful for showing a loading spinner while fetching the initial state
+  userId: string | null;
+  stateDocument: UserState | null;
+  isHydrated: boolean;
 }
 
 interface UserStoreActions {
-  // Auth Actions
   login: (uuid: string) => void;
   logout: () => void;
-  
-  // State Document Actions
   setUserState: (state: UserState) => void;
-  
-  // Initialization
   setHydrated: (status: boolean) => void;
+  
+  // Maps the View Model into the exact payload the backend expects
+  buildSessionPayload: (kneePain: number, energy: number) => GenerateSessionRequest | null;
 }
 
 type UserStore = UserStoreState & UserStoreActions;
 
-export const useUserStore = create<UserStore>((set) => ({
-  // Initial State
+export const useUserStore = create<UserStore>((set, get) => ({
   userId: null,
   stateDocument: null,
   isHydrated: false,
 
-  // Actions
-  login: (uuid) => 
-    set({ userId: uuid }),
+  login: (uuid) => set({ userId: uuid }),
+  logout: () => set({ userId: null, stateDocument: null, isHydrated: false }),
+  setUserState: (state) => set({ stateDocument: state }),
+  setHydrated: (status) => set({ isHydrated: status }),
 
-  logout: () => 
-    set({ userId: null, stateDocument: null, isHydrated: false }),
+  buildSessionPayload: (kneePain, energy) => {
+    const { stateDocument } = get();
+    if (!stateDocument) return null;
 
-  setUserState: (state) => 
-    set({ stateDocument: state }),
+    // Extract just the datetimes for the engine
+    const last_trained = Object.entries(stateDocument.patterns).reduce(
+      (acc, [pattern, data]) => ({
+        ...acc,
+        [pattern]: data.last_trained_datetime,
+      }),
+      {} as Record<MovementPattern, string | null>
+    );
 
-  setHydrated: (status) => 
-    set({ isHydrated: status }),
+    return {
+      knee_pain: kneePain,
+      energy: energy,
+      last_trained,
+      conditioning_levels: stateDocument.conditioning_levels,
+    };
+  },
 }));

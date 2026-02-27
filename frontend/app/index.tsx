@@ -1,47 +1,69 @@
-import React, { useCallback, useState, useMemo } from 'react';
-import { View, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, ScrollView, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-
-// State & Services
+import { Ionicons } from '@expo/vector-icons';
 import { useUserStore } from '../store/useUserStore';
 import { FluxAPI } from '../services/api';
-
-// Core UI Components
-import { Typography } from '../components/core/Typography';
-import { Card } from '../components/core/Card';
-import { Button } from '../components/core/Button';
+import { PatternReadiness } from '../types/api';
 import { theme } from '../theme';
 
 // --- HYBRID UI HELPERS ---
 
-const getReadinessVisuals = (debt: number) => {
-  if (debt === 0) return { color: theme.colors.stateRed, width: '30%', label: 'Fatigued' }; 
-  if (debt === 1) return { color: theme.colors.stateOrange, width: '60%', label: 'Recovering' };
-  return { color: theme.colors.stateGreen, width: '100%', label: 'Fully Primed' };
+const getPatternColor = (statusText: string) => {
+  switch (statusText) {
+    case 'Fatigued': 
+      return theme.colors.stateRed;
+    case 'Recovering': 
+      return theme.colors.stateOrange;
+    case 'Fully Primed': 
+    default:
+      return theme.colors.stateGreen;
+  }
 };
 
-const generateDynamicGreeting = (debts: Record<string, number>) => {
-  const maxDebt = Math.max(...Object.values(debts));
-  const primedPatterns = Object.entries(debts)
-    .filter(([_, value]) => value === maxDebt)
+const getStatusIcon = (statusText: string) => {
+  switch (statusText) {
+    case 'Fatigued': 
+      return 'alert-circle-outline';
+    case 'Recovering': 
+      return 'time-outline';
+    case 'Fully Primed': 
+    default:
+      return 'checkmark-circle-outline';
+  }
+};
+
+const generateDynamicGreeting = (patterns: Record<string, PatternReadiness>) => {
+  const primedPatterns = Object.entries(patterns)
+    .filter(([_, data]) => data.status_text === 'Fully Primed')
     .map(([pattern]) => pattern);
 
-  if (maxDebt === 0) {
+  if (primedPatterns.length === 0) {
     return {
-      headline: "Engine Cooling.",
-      sub: "You've trained every pattern recently. Time to recover or focus on conditioning."
+      headline: "Engine Cooling",
+      subHeadlineStart: "Your movement patterns are ",
+      highlightedPatterns: "recovering",
+      subHeadlineEnd: ". Focus on conditioning."
     };
   }
 
-  const patternString = primedPatterns.join(' and ');
+  // Formatting "PULL, PUSH, and HINGE" beautifully for the new UI
+  let highlightedPatterns = primedPatterns.join(', ');
+  if (primedPatterns.length > 1) {
+    const last = primedPatterns.pop();
+    highlightedPatterns = `${primedPatterns.join(', ')}, and ${last}`;
+  } else if (primedPatterns.length === 1) {
+    highlightedPatterns = primedPatterns[0];
+  }
   
   return {
-    headline: `Your ${patternString} is fully primed`,
-    sub: `It's been ${maxDebt} session${maxDebt > 1 ? 's' : ''} since you trained ${primedPatterns.length > 1 ? 'these patterns' : 'this pattern'}`
+    headline: "Ready to Train",
+    subHeadlineStart: "Your ",
+    highlightedPatterns: highlightedPatterns,
+    subHeadlineEnd: ` pattern${primedPatterns.length >= 1 ? 's are' : ' is'} fully primed.`
   };
 };
 
-// Map backend acronyms to premium frontend labels
 const PROTOCOL_NAMES: Record<string, string> = {
   'HIIT': 'High Intensity Interval Training',
   'SIT': 'Sprint Interval Training',
@@ -73,220 +95,292 @@ export default function HomeDashboard() {
   );
 
   const greeting = useMemo(() => {
-    if (!stateDocument) return { headline: '', sub: '' };
-    return generateDynamicGreeting(stateDocument.pattern_debts);
+    if (!stateDocument) return null;
+    return generateDynamicGreeting(stateDocument.patterns);
   }, [stateDocument]);
 
+  const primedCount = useMemo(() => {
+    if (!stateDocument) return 0;
+    return Object.values(stateDocument.patterns).filter(p => p.status_text === 'Fully Primed').length;
+  }, [stateDocument]);
 
-  if (isInitialLoad && !stateDocument) {
+  if (isInitialLoad || !stateDocument || !greeting) {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={theme.colors.actionPrimary} />
-        <Typography variant="label" style={{ marginTop: theme.spacing.md }}>
-          Syncing Biological State...
-        </Typography>
+        <Text style={styles.loadingText}>Syncing Biological State...</Text>
       </View>
     );
   }
 
-  // Safety fallback if stateDocument somehow still doesn't exist
-  if (!stateDocument) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Typography variant="h3" color={theme.colors.stateRed}>
-          Connection Error
-        </Typography>
-        <Typography variant="body" color={theme.colors.textMuted} style={{ textAlign: 'center', marginTop: theme.spacing.md, marginBottom: theme.spacing.xl }}>
-          Could not reach the FLUX engine. Please check your connection and try again.
-        </Typography>
-        <Button 
-          title="Retry" 
-          onPress={() => {
-            setIsInitialLoad(true);
-            // Re-trigger the focus effect or just reload the app
-            router.replace('/'); 
-          }} 
-        />
-      </View>
-    );
-  }
+  const totalPatterns = Object.keys(stateDocument.patterns).length;
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      
-      {/* --- Header & Dynamic Greeting --- */}
-      <View style={styles.header}>
-        <Typography variant="h1" style={styles.brandTitle}>FLUX</Typography>
-        <Typography variant="h2" style={styles.dynamicHeadline}>
-          {greeting.headline}
-        </Typography>
-        <Typography variant="body" color={theme.colors.textMuted} style={styles.dynamicSub}>
-          {greeting.sub}
-        </Typography>
-      </View>
-
-      {/* --- Readiness Bars --- */}
-      <Card style={styles.cardSpacing} padding={theme.spacing.lg}>
-        <View style={styles.cardHeader}>
-          <Typography variant="h3">Movement Readiness</Typography>
-        </View>
+    <View style={styles.container}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+      >
         
-        <View style={styles.readinessList}>
-          {Object.entries(stateDocument.pattern_debts).map(([pattern, debt]) => {
-            const visual = getReadinessVisuals(debt as number);
-            return (
-              <View key={pattern} style={styles.readinessRow}>
-                <View style={styles.readinessLabels}>
-                  <Typography variant="label" style={styles.patternName}>{pattern}</Typography>
-                  <Typography variant="caption" color={theme.colors.textMuted}>{visual.label}</Typography>
-                </View>
-                
-                <View style={styles.barTrack}>
-                  <View style={[
-                    styles.barFill, 
-                    { width: visual.width as any, backgroundColor: visual.color }
-                  ]} />
-                </View>
-              </View>
-            );
-          })}
+        {/* --- Header Section --- */}
+        <View style={styles.header}>
+          <Text style={styles.headline}>{greeting.headline}</Text>
+          <Text style={styles.subHeadline}>
+            {greeting.subHeadlineStart}
+            <Text style={styles.subHeadlineHighlight}>{greeting.highlightedPatterns}</Text>
+            {greeting.subHeadlineEnd}
+          </Text>
         </View>
-      </Card>
 
-      {/* --- Engine Capacity (Stacked Protocols) --- */}
-      <Card style={styles.cardSpacing} padding={theme.spacing.lg}>
-        <View style={styles.cardHeader}>
-          <Typography variant="h3">Engine Capacity</Typography>
-          <Typography variant="caption" color={theme.colors.textMuted}>
-            Current protocol stages
-          </Typography>
-        </View>
-        
-        <View style={styles.protocolList}>
-          {Object.entries(stateDocument.conditioning_levels)
-            .filter(([protocol]) => protocol !== 'SS') // Hide Steady State
-            .map(([protocol, level]) => {
-              const fullName = PROTOCOL_NAMES[protocol] || protocol; // Fallback to acronym if not found
+        {/* --- Movement Readiness Section --- */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Movement Readiness</Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{primedCount}/{totalPatterns} Primed</Text>
+            </View>
+          </View>
+          
+          <View style={styles.cardList}>
+            {Object.entries(stateDocument.patterns).map(([pattern, data]) => {
+              const { status_text, days_since } = data;
+              const color = getPatternColor(status_text);
+              const iconName = getStatusIcon(status_text);
+              const daysDisplay = days_since === null ? 'Untrained' : `${days_since} days ago`;
 
               return (
-                <View key={protocol} style={styles.engineRow}>
-                  <Typography variant="label" style={styles.protocolName}>{fullName}</Typography>
-                  <View style={styles.pillBadge}>
-                    <Typography variant="caption" style={styles.pillLevel}>Level {level as number}</Typography>
+                <View key={pattern} style={styles.readinessCard}>
+                  <View style={styles.cardLeft}>
+                    <View style={[styles.pillIndicator, { backgroundColor: color }]} />
+                    <View>
+                      <Text style={styles.patternName}>{pattern}</Text>
+                      <Text style={[styles.statusText, { color }]}>{status_text}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.cardRight}>
+                    <Ionicons name={iconName} size={20} color={color} />
+                    <Text style={styles.daysText}>{daysDisplay}</Text>
                   </View>
                 </View>
               );
-          })}
+            })}
+          </View>
         </View>
-      </Card>
 
-      {/* --- Massive Action Button --- */}
-      <View style={styles.footer}>
-        <Button 
-          title="Check-In & Generate Session" 
-          onPress={() => router.push('/(session)/check-in')} 
-        />
+        {/* --- Engine Capacity Section --- */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Engine Capacity</Text>
+          </View>
+          
+          <View style={styles.cardList}>
+            {Object.entries(stateDocument.conditioning_levels)
+              .filter(([protocol]) => protocol !== 'SS') // Hide Steady State
+              .map(([protocol, level]) => {
+                const fullName = PROTOCOL_NAMES[protocol] || protocol; 
+
+                return (
+                  <View key={protocol} style={styles.engineCard}>
+                    <View style={styles.cardLeft}>
+                      <View style={styles.iconCircle}>
+                        <Ionicons name="pulse-outline" size={16} color={theme.colors.textPrimary} />
+                      </View>
+                      <Text style={styles.protocolName}>{fullName}</Text>
+                    </View>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>Level {level as number}</Text>
+                    </View>
+                  </View>
+                );
+            })}
+          </View>
+        </View>
+
+        {/* Padding for sticky button */}
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* --- Sticky Bottom Action Button --- */}
+      <View style={styles.stickyFooter}>
+        <TouchableOpacity 
+          style={styles.primaryButton}
+          activeOpacity={0.9}
+          onPress={() => router.push('/(session)/check-in')}
+        >
+          <Text style={styles.buttonText}>Check-In & Generate Session</Text>
+          <Ionicons name="arrow-forward" size={20} color={theme.colors.surface} />
+        </TouchableOpacity>
       </View>
-      
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    backgroundColor: theme.colors.background, 
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: 80,
-    paddingBottom: 40,
+    flex: 1,
+    backgroundColor: theme.colors.background,
   },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    marginBottom: theme.spacing.xxxl,
-  },
-  brandTitle: {
-    fontSize: 14,
-    letterSpacing: 2,
+  loadingText: {
+    marginTop: theme.spacing.md,
     color: theme.colors.textMuted,
-    marginBottom: theme.spacing.lg,
+    fontWeight: '500',
   },
-  dynamicHeadline: {
-    marginBottom: theme.spacing.sm,
-    color: theme.colors.textPrimary,
-  },
-  dynamicSub: {
-    lineHeight: 22,
-  },
-  cardSpacing: {
-    marginBottom: theme.spacing.xl,
-  },
-  cardHeader: {
-    marginBottom: theme.spacing.lg,
+  scrollContent: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: 80,
+    paddingBottom: 40,
   },
   
-  // Readiness Bars Styles
-  readinessList: {
-    gap: theme.spacing.md,
+  // Header
+  header: {
+    marginBottom: theme.spacing.xxl,
   },
-  readinessRow: {
+  headline: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+    letterSpacing: -0.5,
     marginBottom: theme.spacing.xs,
   },
-  readinessLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: theme.spacing.xs,
+  subHeadline: {
+    fontSize: 16,
+    color: theme.colors.textMuted,
+    lineHeight: 24,
   },
-  patternName: {
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  barTrack: {
-    height: 12,
-    backgroundColor: '#EBEBEB',
-    borderRadius: theme.radii.pill,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: theme.radii.pill,
-  },
-
-  // Engine Capacity Styles
-  protocolList: {
-    gap: theme.spacing.sm, // Vertical spacing between rows
-  },
-  engineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between', // Pushes the text to the left and badge to the right
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderLight,
-    borderRadius: theme.radii.pill,
-    paddingLeft: 16,
-    paddingRight: 6,
-    paddingVertical: 6,
-  },
-  protocolName: {
+  subHeadlineHighlight: {
+    color: theme.colors.textPrimary,
     fontWeight: '600',
   },
-  pillBadge: {
-    backgroundColor: '#F0F0F0',
+
+  // Sections
+  section: {
+    marginBottom: theme.spacing.xxl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    letterSpacing: -0.5,
+  },
+  badge: {
+    backgroundColor: '#E5E5EA', // Slightly darker than background for contrast
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: theme.radii.pill,
+    borderRadius: theme.radii.sm,
   },
-  pillLevel: {
-    fontWeight: 'bold',
+  badgeText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: theme.colors.textPrimary,
   },
 
-  footer: {
-    marginTop: 'auto', 
-    paddingTop: theme.spacing.xxl,
-  }
+  // Cards
+  cardList: {
+    gap: theme.spacing.sm,
+  },
+  readinessCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.lg,
+    ...theme.shadows.card,
+  },
+  engineCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.md,
+    padding: theme.spacing.md,
+    ...theme.shadows.card,
+  },
+  cardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  cardRight: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  
+  // Card Specific Internals
+  pillIndicator: {
+    width: 6,
+    height: 48,
+    borderRadius: theme.radii.pill,
+  },
+  patternName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    letterSpacing: -0.5,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  daysText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.textMuted,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  protocolName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+  },
+
+  // Sticky Footer Button
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: theme.spacing.xl,
+    paddingBottom: 40, // Extra padding for safe area / home indicator
+    backgroundColor: 'rgba(246, 245, 242, 0.95)', // theme.colors.background with opacity
+  },
+  primaryButton: {
+    backgroundColor: theme.colors.actionPrimary,
+    flexDirection: 'row',
+    height: 56,
+    borderRadius: theme.radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  buttonText: {
+    color: theme.colors.surface,
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });

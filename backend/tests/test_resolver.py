@@ -1,7 +1,8 @@
 import pytest
+from datetime import datetime, timezone, timedelta
 from core.resolver import WorkoutResolver
 
-# 1. Create a "Mock Brain" fixture so we don't need the database
+# 1. Create a "mock brain" fixture so we don't need the database
 @pytest.fixture
 def mock_brain():
     configs = {
@@ -19,7 +20,7 @@ def mock_brain():
     exercises = []
     return configs, exercises
 
-# 2. Test the Triage Engine
+# 2. Test the triage engine
 def test_evaluate_state_red_pain(mock_brain):
     configs, exercises = mock_brain
     resolver = WorkoutResolver(configs, exercises)
@@ -40,20 +41,46 @@ def test_evaluate_state_low_energy(mock_brain):
     assert state == "RED"
     assert archetype == "RECOVERY"
 
-# 3. Test the Debt Tie-Breaker
+# 3. Test the UTC timestamp progression engine
 def test_resolve_main_pattern_tie_breaker(mock_brain):
     configs, exercises = mock_brain
     resolver = WorkoutResolver(configs, exercises)
     
-    # SQUAT and PUSH are tied at 5 days of debt. 
+    # We use timedelta to dynamically generate deterministic timestamps
+    now = datetime.now(timezone.utc)
+    five_days_ago = (now - timedelta(days=5)).isoformat()
+    two_days_ago = (now - timedelta(days=2)).isoformat()
+    one_day_ago = (now - timedelta(days=1)).isoformat()
+    
+    # SQUAT and PUSH are tied at exactly 5 days elapsed
     # According to our logic.pattern_priority, SQUAT should win.
-    pattern_debts = {
-        "SQUAT": 5,
-        "PUSH": 5,
-        "HINGE": 2,
-        "PULL": 1
+    last_trained = {
+        "SQUAT": five_days_ago,
+        "PUSH": five_days_ago,
+        "HINGE": two_days_ago,
+        "PULL": one_day_ago
     }
     
-    main_pattern = resolver._resolve_main_pattern(pattern_debts)
+    main_pattern = resolver._resolve_main_pattern(last_trained)
     
     assert main_pattern == "SQUAT"
+
+def test_resolve_main_pattern_null_is_highest_priority(mock_brain):
+    configs, exercises = mock_brain
+    resolver = WorkoutResolver(configs, exercises)
+    
+    now = datetime.now(timezone.utc)
+    ten_days_ago = (now - timedelta(days=10)).isoformat()
+    
+    # Even though SQUAT hasn't been trained in 10 days, PULL has NEVER been trained (None)
+    # None evaluates to infinite debt and should win
+    last_trained = {
+        "SQUAT": ten_days_ago,
+        "PUSH": ten_days_ago,
+        "HINGE": ten_days_ago,
+        "PULL": None 
+    }
+    
+    main_pattern = resolver._resolve_main_pattern(last_trained)
+    
+    assert main_pattern == "PULL"
