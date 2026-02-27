@@ -89,7 +89,12 @@ export default function ActiveSessionScreen() {
     return (
       <View style={[styles.slideContainer, { width }]}>
         <Card style={styles.blockCard} padding={0}>
-          <ScrollView contentContainerStyle={styles.cardScrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            contentContainerStyle={styles.cardScrollContent} 
+            showsVerticalScrollIndicator={false}
+            // Allow touches to pass through to the submit button
+            keyboardShouldPersistTaps="handled" 
+          >
             <Typography variant="h2" style={{ marginBottom: theme.spacing.md }}>
               {item.label}
             </Typography>

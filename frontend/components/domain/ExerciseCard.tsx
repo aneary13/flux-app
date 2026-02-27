@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Types & State
@@ -98,6 +98,7 @@ function SetRow({ exercise, setIndex, isConditioning }: SetRowProps) {
       // 1. Optimistic UI Update (Save to Zustand)
       logSet(exerciseId, setIndex, payload);
       setIsEditing(false); 
+      Keyboard.dismiss(); // Explicitly drop the native keyboard
 
       // 2. Background API Call
       if (sessionId) {
