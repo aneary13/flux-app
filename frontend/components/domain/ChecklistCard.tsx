@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Types & State
@@ -27,6 +27,7 @@ function ChecklistItem({ exercise }: { exercise: Exercise }) {
 
   const handleToggle = () => {
     logSet(exerciseId, 0, { completed: !isChecked });
+    Keyboard.dismiss();
   };
 
   return (
@@ -72,7 +73,10 @@ export function ChecklistCard({ exercises, title }: ChecklistCardProps) {
       <TouchableOpacity 
         style={styles.headerRow} 
         activeOpacity={0.7}
-        onPress={() => setIsExpanded(!isExpanded)}
+        onPress={() => {
+          setIsExpanded(!isExpanded);
+          Keyboard.dismiss(); // Clean up the UI on layout changes
+        }}
       >
         <View>
           {title && <Typography variant="h3" style={styles.title}>{title}</Typography>}

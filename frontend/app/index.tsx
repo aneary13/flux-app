@@ -209,7 +209,6 @@ export default function HomeDashboard() {
           onPress={() => router.push('/(session)/check-in')}
         >
           <Text style={styles.buttonText}>Check-In & Generate Session</Text>
-          <Ionicons name="arrow-forward" size={20} color={theme.colors.surface} />
         </TouchableOpacity>
       </View>
     </View>

@@ -18,7 +18,7 @@ export default function CheckInScreen() {
   const router = useRouter();
   
   // Zustand Stores
-  const { stateDocument } = useUserStore();
+  const { stateDocument, buildSessionPayload } = useUserStore();
   const { setReadiness, setSessionData } = useSessionStore();
 
   // Local UI State (1-10 Scale)
@@ -35,13 +35,13 @@ export default function CheckInScreen() {
       // 1. Save local state
       setReadiness(kneePain, energy);
 
-      // 2. Build the exact JSON payload the FastAPI engine expects
-      const payload = {
-        knee_pain: kneePain,
-        energy: energy,
-        pattern_debts: stateDocument.pattern_debts,
-        conditioning_levels: stateDocument.conditioning_levels,
-      };
+      // 2. Use our Zustand helper to build the exact JSON payload the FastAPI engine expects
+      // This maps the patterns View Model into the flat `last_trained` datetime map.
+      const payload = buildSessionPayload(kneePain, energy);
+      
+      if (!payload) {
+        throw new Error("Failed to construct payload. User state is missing.");
+      }
 
       // 3. Hit the generation loop
       const generatedSession = await FluxAPI.generateSession(payload);
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: theme.colors.background,
     padding: theme.spacing.xl,
-    paddingTop: 80, // Accounts for the missing back button header for now
+    paddingTop: 80, 
   },
   header: {
     marginBottom: theme.spacing.xxxl,
@@ -164,11 +164,11 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
   infoCard: {
-    backgroundColor: '#EBEBEB', // Slightly darker grey for the info card as seen in the design
+    backgroundColor: '#EBEBEB', 
     marginTop: theme.spacing.md,
   },
   footer: {
-    marginTop: 'auto', // Pushes button to the bottom if the screen is tall
+    marginTop: 'auto', 
     paddingTop: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
   }
