@@ -1,4 +1,6 @@
 import os
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
@@ -7,12 +9,37 @@ from datetime import datetime, timezone
 
 from core.models import GenerateSessionRequest, StartSessionRequest, LogSetRequest, CompleteSessionRequest, UserStateResponse, PatternState
 from core.resolver import WorkoutResolver
+from services.system_init import auto_seed_database
 
 # Load environment variables
 load_dotenv()
 
-# Initialize FastAPI App
-app = FastAPI(title="FLUX API", version="1.0.0")
+# Configure startup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize Supabase Client
+supabase_url = os.environ.get("SUPABASE_URL")
+# IMPORTANT: For the API, we use the standard ANON key, not the service_role key.
+supabase_key = os.environ.get("SUPABASE_KEY") 
+supabase: Client = create_client(supabase_url, supabase_key)
+
+DUMMY_USER_ID = "00000000-0000-0000-0000-000000000000"
+
+# Set up the Lifespan Hook for robust initialization
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- Startup Phase ---
+    logger.info("FLUX Engine: Booting sequence initiated...")
+    auto_seed_database(supabase, DUMMY_USER_ID)
+    
+    yield # Application serves requests here
+    
+    # --- Shutdown Phase ---
+    logger.info("FLUX Engine: Shutting down gracefully...")
+
+# Initialize FastAPI App WITH the lifespan hook
+app = FastAPI(title="FLUX API", version="1.0.0", lifespan=lifespan)
 
 # Set up CORS (allows your frontend to talk to this API)
 app.add_middleware(
@@ -22,14 +49,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize Supabase Client
-supabase_url = os.environ.get("SUPABASE_URL")
-# IMPORTANT: For the API, we use the standard ANON key, not the service_role key.
-supabase_key = os.environ.get("SUPABASE_KEY") 
-supabase: Client = create_client(supabase_url, supabase_key)
-
-DUMMY_USER_ID = "00000000-0000-0000-0000-000000000000"
 
 @app.get("/")
 def read_root():
