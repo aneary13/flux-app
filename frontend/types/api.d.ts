@@ -1,21 +1,27 @@
-// --- 1. Global Enums & Literals ---
-export type Archetype = 'PERFORMANCE' | 'RECOVERY'; 
+// --- Global Enums & Literals ---
+export type Archetype = 'PERFORMANCE' | 'RECOVERY';
 export type BiologicalState = 'GREEN' | 'ORANGE' | 'RED';
-export type MovementPattern = 'SQUAT' | 'HINGE' | 'PUSH' | 'PULL'; 
-export type ConditioningProtocol = 'HIIT' | 'SIT' | 'SS'; 
-export type BlockType = 'PREP' | 'POWER' | 'MAIN' | 'ACCESSORY' | 'CONDITIONING'; 
+export type MovementPattern = 'SQUAT' | 'HINGE' | 'PUSH' | 'PULL';
+export type ConditioningProtocol = 'HIIT' | 'SIT' | 'SS';
+export type BlockType = 'PREP' | 'POWER' | 'MAIN' | 'ACCESSORY' | 'CONDITIONING';
 
-// Updated based on your live JSON payload
-export type TrackingUnit = 'REPS' | 'SECS' | 'DISTANCE' | 'WEIGHT' | 'CHECKLIST' | 'WATTS'; 
+export type TrackingUnit = 'REPS' | 'SECS' | 'DISTANCE' | 'WEIGHT' | 'CHECKLIST' | 'WATTS';
 export type LoadType = 'BODYWEIGHT' | 'WEIGHTED';
 
-// --- 2. User State Management ---
-export interface UserState {
-  pattern_debts: Record<MovementPattern, number>; 
-  conditioning_levels: Record<ConditioningProtocol, number>; 
+// --- Pattern Readiness View Model ---
+export interface PatternReadiness {
+  last_trained_datetime: string | null;
+  days_since: number | null;
+  status_text: 'Fully Primed' | 'Recovering' | 'Fatigued';
 }
 
-// --- 3. Exercise & Block Architecture ---
+// --- User State Management ---
+export interface UserState {
+  patterns: Record<MovementPattern, PatternReadiness>; 
+  conditioning_levels: Partial<Record<ConditioningProtocol, number>>; 
+}
+
+// --- Exercise & Block Architecture ---
 export interface Exercise {
   id?: string; // Optional fallback for React keys
   name: string;
@@ -40,12 +46,12 @@ export interface SessionBlock {
   exercises: Exercise[];
 }
 
-// --- 4. Session Generation Payloads ---
+// --- Session Generation Payloads ---
 export interface GenerateSessionRequest {
-  knee_pain: number; 
-  energy: number; 
-  pattern_debts: Record<MovementPattern, number>; 
-  conditioning_levels: Record<ConditioningProtocol, number>; 
+  knee_pain: number;
+  energy: number;
+  last_trained: Record<MovementPattern, string | null>;
+  conditioning_levels: Partial<Record<ConditioningProtocol, number>>;
 }
 
 export interface SessionMetadata {
@@ -60,7 +66,7 @@ export interface GeneratedSessionResponse {
   blocks: SessionBlock[]; 
 }
 
-// --- 5. Session Execution Payloads ---
+// --- Session Execution Payloads ---
 export interface StartSessionRequest {
   readiness: {
     knee_pain: number; 

@@ -1,4 +1,4 @@
-# FLUX - Frontend Application
+# FLUX App (Frontend)
 
 This is the React Native (Expo) frontend for **FLUX**, a premium biological training engine. 
 
@@ -37,11 +37,12 @@ frontend/
 
 The application relies on **Zustand** for state management, split into two distinct domains to prevent unnecessary re-renders:
 
-1. `useUserStore`: Holds the user's current "Biological State" (Pattern Debts and Conditioning Levels). It is refreshed via `useFocusEffect` every time the user navigates back to the Home screen (`app/index.tsx`).
+1. `useUserStore`: Holds the user's current "Biological State" (the Pattern Readiness View Model and active Conditioning Levels). It is refreshed via `useFocusEffect` every time the user navigates back to the Home screen (`app/index.tsx`).
 2. `useSessionStore`: Handles the highly dynamic state of an active workout. It logs completed sets, manages background block timers, and gathers notes. It is intentionally cleared (`clearSession()`) upon completing a workout.
 
 ## 🎨 Design System
-The UI adheres to a "Premium Biological Tech" aesthetic. We avoid raw numbers for biological states where possible, favoring color-coded readiness bars defined in theme/index.ts:
+
+The UI adheres to a "Premium Biological Tech" aesthetic. We strictly map the `status_text` strings returned by the backend View Model to our designated theme colors defined in `theme/index.ts`:
 
 * **Sage Green** (`#8FA58A`): Fully Primed
 * **Earthy Sand** (`#D4A373`): Priming / Recovering

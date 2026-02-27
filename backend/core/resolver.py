@@ -1,4 +1,5 @@
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Optional
+from datetime import datetime, timezone
 
 class WorkoutResolver:
     """
@@ -53,28 +54,41 @@ class WorkoutResolver:
         else:
             return "GREEN", "PERFORMANCE"
     
-    def _resolve_main_pattern(self, pattern_debts: Dict[str, int]) -> str:
+    def _resolve_main_pattern(self, last_trained: Dict[str, Optional[str]]) -> str:
         """
-        Calculates which pattern is 'due' based on historical debt and priority tie-breakers.
+        Calculates which pattern is 'due' based on elapsed time since the last 
+        training session and priority tie-breakers.
         """
-        # If no history exists, default to 0 for all priorities
         priorities = self.logic.get("pattern_priority", ["SQUAT", "PUSH", "HINGE", "PULL"])
-        if not pattern_debts:
-            pattern_debts = {p: 0 for p in priorities}
+        if not last_trained:
+            last_trained = {p: None for p in priorities}
 
-        # 1. Find the highest debt value (e.g., 5 days)
-        max_debt = max(pattern_debts.values())
+        now = datetime.now(timezone.utc)
+        debts = {}
+
+        # 1. Calculate debt in seconds
+        for pattern in priorities:
+            timestamp_str = last_trained.get(pattern)
+            if not timestamp_str:
+                # Never trained = infinite debt
+                debts[pattern] = float('inf')
+            else:
+                # Handle ISO 8601 parsing (Python 3.11+ handles the 'Z' suffix gracefully)
+                last_dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                debts[pattern] = (now - last_dt).total_seconds()
+
+        # 2. Find the highest debt value
+        max_debt = max(debts.values())
         
-        # 2. Find all patterns tied for that highest debt
-        due_patterns = [p for p, d in pattern_debts.items() if d == max_debt]
+        # 3. Find all patterns tied for that highest debt
+        due_patterns = [p for p, d in debts.items() if d == max_debt]
 
-        # 3. Tie-breaker: Consult the system priority list
+        # 4. Tie-breaker: Consult the system priority list
         for pattern in priorities:
             if pattern in due_patterns:
                 self.main_pattern = pattern
                 return pattern
                 
-        # Fallback safeguard
         self.main_pattern = due_patterns[0]
         return self.main_pattern
 
@@ -228,7 +242,7 @@ class WorkoutResolver:
             "target_intensity": target_intensity
         }]
 
-    def generate_session(self, knee_pain: int, energy: int, pattern_debts: Dict[str, int], conditioning_levels: Dict[str, int] = None, benchmarks: Dict[str, float] = None) -> Dict[str, Any]:
+    def generate_session(self, knee_pain: int, energy: int, last_trained: Dict[str, Optional[str]], conditioning_levels: Dict[str, int] = None, benchmarks: Dict[str, float] = None) -> Dict[str, Any]:
         """
         The master function that builds the entire workout.
         """
@@ -238,7 +252,7 @@ class WorkoutResolver:
             benchmarks = {}
 
         self.current_state, self.archetype = self._evaluate_state(knee_pain, energy)
-        self._resolve_main_pattern(pattern_debts)
+        self._resolve_main_pattern(last_trained)
         
         layout_templates = self.sessions.get(self.archetype, {}).get("blocks", [])
         

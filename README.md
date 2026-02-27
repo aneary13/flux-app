@@ -2,7 +2,7 @@
 
 **The Biological Training Engine**
 
-FLUX is a premium, auto-regulated training application. Instead of relying on a fixed, rigid workout calendar, FLUX uses an agile periodization approach. It evaluates a user's daily biological readiness (pain and energy levels) alongside their historical "Pattern Debt" to dynamically generate the exact training session their body needs today.
+FLUX is a premium, auto-regulated training application. Instead of relying on a fixed, rigid workout calendar, FLUX uses an agile periodization approach. It evaluates a user's daily biological readiness (pain and energy levels) alongside their historical "Pattern Freshness" to dynamically generate the exact training session their body needs today.
 
 ## 🏗 System Architecture
 
@@ -18,7 +18,7 @@ FLUX is built on a decoupled, three-pillar architecture.
 
 * **Location:** [`/backend`](./backend/README.md)
 * **Tech:** Python 3.13+, FastAPI, `uv`, Pydantic V2.
-* **Role:** The decision engine. It reads the user's biological inputs, checks their pattern debts (e.g., days since last Hinge), and generates a fully structured, state-appropriate training session (Performance vs. Recovery). 
+* **Role:** The decision engine. It reads the user's biological inputs, evaluates pattern freshness (e.g., real-time elapsed duration since the last Hinge session), and generates a fully structured, state-appropriate training session (Performance vs. Recovery). 
 
 ### 3. The Database: "The Source of Truth"
 

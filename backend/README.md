@@ -1,6 +1,6 @@
 # FLUX Engine (Backend)
 
-The FLUX Engine is a Python-based FastAPI backend that serves as the biological decision engine for the FLUX React Native mobile app. It translates biological inputs (pain, energy, pattern debt) into auto-regulated, structured training sessions.
+The FLUX Engine is a Python-based FastAPI backend that serves as the biological decision engine for the FLUX React Native mobile app. It translates biological inputs (pain, energy, pattern freshness) into auto-regulated, structured training sessions.
 
 ## Tech Stack
 
@@ -14,22 +14,22 @@ The FLUX Engine is a Python-based FastAPI backend that serves as the biological 
 
 ## System Architecture: "The Brain"
 
-The core logic of FLUX lives in `core/resolver.py`. It operates on three main biological concepts:
+The core logic of FLUX lives in `core/resolver.py`. It operates on three main biological concepts to construct a strictly formatted "View Model" for the mobile app (enforcing a "Thin Client" architecture where the frontend does zero math):
 
 1. **Readiness State (Green / Orange / Red):**
    * Calculated from user inputs (`knee_pain`, `energy`).
    * Dictates the session *Archetype* (Performance vs. Recovery).
    * Dictates exercise selection (e.g., `GREEN` = Back Squat, `ORANGE` = Box Squat).
-2. **Pattern Debt:**
-   * Tracks sessions since a movement pattern was last trained (`SQUAT`, `HINGE`, `PUSH`, `PULL`).
-   * The highest debt becomes the `anchor_pattern` for the generated session.
+2. **Pattern Freshness (Time Delta):**
+   * Tracks the real-time UTC elapsed duration since a movement pattern was last trained (`SQUAT`, `HINGE`, `PUSH`, `PULL`).
+   * The pattern with the longest elapsed time (or a `null` timestamp indicating it is untrained) becomes the `anchor_pattern` for the generated session.
 3. **Conditioning Progression:**
-   * Tracks linear progression levels for protocols (`HIIT`, `SIT`, `SS`).
+   * Tracks linear progression levels for active metabolic protocols (`HIIT`, `SIT`). Steady State (`SS`) is intentionally excluded from state tracking as it does not progress.
    * Handles dynamic wattage calculations based on user benchmarks.
 
 ### Database Schema Notes
 
-We use a hybrid relational/NoSQL approach to keep tables clean. The `workout_sets` table contains standard relational columns (`weight`, `reps`, `seconds`) alongside a powerful `metadata` (JSONB) column to store protocol-specific conditioning data (e.g., `avg_watts`, `peak_hr`, `protocol_level`) without polluting the table with sparse columns.
+We use a hybrid relational/NoSQL approach to keep tables clean. The `workout_sets` table contains standard relational columns (`weight`, `reps`, `seconds`) alongside a powerful `metadata` (JSONB) column to store protocol-specific conditioning data (e.g., `avg_watts`, `peak_hr`, `protocol_level`) without polluting the table with sparse columns. The user's active progression state is stored as a flexible JSONB document in the `user_configs` table.
 
 ## Directory Structure
 
