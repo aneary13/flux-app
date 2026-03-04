@@ -6,7 +6,7 @@ FLUX is a stateless, rules-based fitness engine built with **FastAPI** and **Sup
 
 ## **2. Global State Management**
 
-The user's progression is stored in a **State Document** within the `user_configs` table (`slug: "state"`). 
+The user's progression is stored in a **State Document** within the `user_configs` table (`slug: "state"`).
 
 * **Last Trained Dates:** A dictionary mapping each movement pattern (SQUAT, PUSH, HINGE, PULL) to a UTC ISO-8601 timestamp representing when it was last anchored in a session. Un-trained patterns are set to `null`.
 * **Conditioning Levels:** A linear progression tracker for metabolic protocols (HIIT, SIT).
@@ -20,7 +20,7 @@ The user's progression is stored in a **State Document** within the `user_config
     * **Client Action:** Cache locally to power the UI without constant re-fetching.
 * **`GET /user/state`**
     * **Purpose:** Retrieves the current State Document formatted as a View Model so the client performs no datetime math.
-    * **Output:** 
+    * **Output:**
         ```json
         {
           "patterns": {
@@ -62,7 +62,7 @@ The user's progression is stored in a **State Document** within the `user_config
           }
         }
         ```
-    * **Logic:** 
+    * **Logic:**
         1. **State Check:** Pain > 3 OR Energy < 4 results in a `RECOVERY` Archetype. Otherwise, the session is `PERFORMANCE`.
         2. **Calculation & Tie-Breaking:** The backend calculates the time elapsed since each `last_trained` timestamp. `null` is treated as infinite elapsed time. If multiple patterns have equal elapsed time, the engine strictly prioritizes using the order defined in `logic.yaml` (`pattern_priority`).
     * **Output:** A full session plan containing `metadata` (Archetype, Anchor Pattern) and `blocks` (PREP, POWER, MAIN, ACCESSORY, CONDITIONING).
@@ -75,7 +75,7 @@ The user's progression is stored in a **State Document** within the `user_config
 * **`POST /sessions/{session_id}/sets`**
     * **Purpose:** Atomic logging of weight, reps, and RPE for each individual set.
 * **`POST /sessions/{session_id}/complete`**
-    * **Input:** 
+    * **Input:**
         ```json
         {
           "anchor_pattern": "SQUAT",

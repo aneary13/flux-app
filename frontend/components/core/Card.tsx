@@ -7,23 +7,15 @@ interface CardProps extends ViewProps {
   noShadow?: boolean;
 }
 
-export function Card({ 
-  style, 
-  children, 
+export function Card({
+  style,
+  children,
   padding = theme.spacing.lg, // Standard 20px padding
   noShadow = false,
-  ...rest 
+  ...rest
 }: CardProps) {
   return (
-    <View
-      style={[
-        styles.card,
-        { padding },
-        !noShadow && styles.shadow,
-        style,
-      ]}
-      {...rest}
-    >
+    <View style={[styles.card, { padding }, !noShadow && styles.shadow, style]} {...rest}>
       {children}
     </View>
   );

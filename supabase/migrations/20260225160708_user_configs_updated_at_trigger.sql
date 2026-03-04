@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS moddatetime SCHEMA extensions;
 DROP TRIGGER IF EXISTS handle_updated_at ON user_configs;
 
 -- 3. Create the trigger with the explicit schema path
-CREATE TRIGGER handle_updated_at 
-  BEFORE UPDATE ON user_configs
-  FOR EACH ROW 
-  EXECUTE FUNCTION extensions.moddatetime(updated_at);
+CREATE TRIGGER handle_updated_at
+BEFORE UPDATE ON user_configs
+FOR EACH ROW
+EXECUTE FUNCTION extensions.moddatetime(updated_at);

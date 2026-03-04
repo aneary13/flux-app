@@ -13,7 +13,7 @@ The FLUX database uses PostgreSQL. To accommodate the highly variable data gener
    * Contains the dynamic user `state` (pattern debts, conditioning progression levels).
 2. **`exercises`**: The catalog of validated movements and their metadata (tracking units, load types).
 3. **`workout_sessions`**: Tracks active and completed training sessions, mapping to an archetype (Performance/Recovery) and an anchor pattern.
-4. **`workout_sets`**: Logs individual sets. 
+4. **`workout_sets`**: Logs individual sets.
    * **Hybrid Column Strategy:** Standard metrics (`weight`, `reps`, `seconds`) are stored in root columns. Highly specialized or protocol-specific metrics (e.g., `avg_watts`, `peak_hr`, `protocol`, `level`) are stored in a `metadata` (JSONB) column.
 
 ## Local Development Workflow

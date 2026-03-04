@@ -31,15 +31,15 @@ export default function PlanScreen() {
 
   const stateConfig = {
     GREEN: {
-      text: "Full Intensity Training",
+      text: 'Full Intensity Training',
       color: theme.colors.stateGreen,
     },
     ORANGE: {
-      text: "Modified Training",
+      text: 'Modified Training',
       color: theme.colors.stateOrange || '#E9C46A', // Fallback if theme not updated
     },
     RED: {
-      text: "Rehab and Recovery",
+      text: 'Rehab and Recovery',
       color: theme.colors.stateRed,
     },
   };
@@ -53,9 +53,9 @@ export default function PlanScreen() {
     try {
       const response = await FluxAPI.startSession({ readiness });
       startSession(response.session_id);
-      router.push('/(session)/active'); 
+      router.push('/(session)/active');
     } catch (error) {
-      console.error("Failed to start session on backend:", error);
+      console.error('Failed to start session on backend:', error);
     } finally {
       setIsStarting(false);
     }
@@ -65,7 +65,7 @@ export default function PlanScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Typography variant="h1">Today's Plan</Typography>
+        <Typography variant="h1">{"Today's Plan"}</Typography>
       </View>
 
       {/* Dynamic State Banner */}
@@ -86,13 +86,11 @@ export default function PlanScreen() {
                   {index + 1}
                 </Typography>
               </View>
-              
+
               <View style={styles.blockTitle}>
                 <Typography variant="h3">{block.type}</Typography>
                 {/* Fixed: Only renders if block.name exists, no "Overview" fallback */}
-                {block.label ? (
-                  <Typography variant="caption">{block.label}</Typography>
-                ) : null}
+                {block.label ? <Typography variant="caption">{block.label}</Typography> : null}
               </View>
             </View>
 
@@ -107,81 +105,77 @@ export default function PlanScreen() {
 
       {/* Action Footer */}
       <View style={styles.footer}>
-        <Button 
-          title="Let's Go" 
-          onPress={handleStartWorkout}
-          loading={isStarting}
-        />
+        <Button title="Let's Go" onPress={handleStartWorkout} loading={isStarting} />
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flexGrow: 1, 
-    backgroundColor: theme.colors.background, 
-    padding: theme.spacing.xl, 
-    paddingTop: 80 
+  container: {
+    flexGrow: 1,
+    backgroundColor: theme.colors.background,
+    padding: theme.spacing.xl,
+    paddingTop: 80,
   },
-  center: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  header: { 
-    marginBottom: theme.spacing.xl 
+  header: {
+    marginBottom: theme.spacing.xl,
   },
-  bannerCard: { 
-    marginBottom: theme.spacing.xl, 
-    backgroundColor: '#EBEBEB' 
+  bannerCard: {
+    marginBottom: theme.spacing.xl,
+    backgroundColor: '#EBEBEB',
   },
-  bannerContent: { 
-    flexDirection: 'row', 
-    alignItems: 'center' 
+  bannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  indicatorDot: { 
-    width: 16, 
-    height: 16, 
-    borderRadius: 8, 
-    marginRight: theme.spacing.md 
+  indicatorDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: theme.spacing.md,
   },
-  blocksContainer: { 
-    gap: theme.spacing.md 
+  blocksContainer: {
+    gap: theme.spacing.md,
   },
-  blockCard: { 
-    marginBottom: theme.spacing.xs 
+  blockCard: {
+    marginBottom: theme.spacing.xs,
   },
-  blockHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: theme.spacing.md 
+  blockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
   },
-  numberCircle: { 
-    width: 32, 
-    height: 32, 
-    borderRadius: 16, 
-    backgroundColor: theme.colors.actionPrimary, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginRight: theme.spacing.md 
+  numberCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.actionPrimary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.md,
   },
-  numberText: { 
-    color: theme.colors.surface, 
-    fontWeight: 'bold', 
-    fontSize: 14 
+  numberText: {
+    color: theme.colors.surface,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
-  blockTitle: { 
-    flex: 1 
+  blockTitle: {
+    flex: 1,
   },
-  pillsContainer: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: theme.spacing.sm, 
-    marginLeft: 48 
+  pillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginLeft: 48,
   },
-  footer: { 
-    marginTop: theme.spacing.xxl, 
-    marginBottom: theme.spacing.xl 
-  }
+  footer: {
+    marginTop: theme.spacing.xxl,
+    marginBottom: theme.spacing.xl,
+  },
 });

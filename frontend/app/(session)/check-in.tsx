@@ -16,7 +16,7 @@ import { theme } from '../../theme';
 
 export default function CheckInScreen() {
   const router = useRouter();
-  
+
   // Zustand Stores
   const { stateDocument, buildSessionPayload } = useUserStore();
   const { setReadiness, setSessionData } = useSessionStore();
@@ -38,21 +38,21 @@ export default function CheckInScreen() {
       // 2. Use our Zustand helper to build the exact JSON payload the FastAPI engine expects
       // This maps the patterns View Model into the flat `last_trained` datetime map.
       const payload = buildSessionPayload(kneePain, energy);
-      
+
       if (!payload) {
-        throw new Error("Failed to construct payload. User state is missing.");
+        throw new Error('Failed to construct payload. User state is missing.');
       }
 
       // 3. Hit the generation loop
       const generatedSession = await FluxAPI.generateSession(payload);
-      
+
       // 4. Store the resulting workout blocks in Zustand
       setSessionData(generatedSession);
-      
+
       // 5. Navigate to the Plan preview
       router.push('/(session)/plan');
     } catch (error) {
-      console.error("Failed to generate session:", error);
+      console.error('Failed to generate session:', error);
       // In production, we'd trigger a toast or alert here
     } finally {
       setIsGenerating(false);
@@ -72,7 +72,7 @@ export default function CheckInScreen() {
           <Typography variant="h3">Knee Pain</Typography>
           <Typography variant="h1">{kneePain}</Typography>
         </View>
-        
+
         <Slider
           style={styles.slider}
           minimumValue={1}
@@ -84,7 +84,7 @@ export default function CheckInScreen() {
           maximumTrackTintColor={theme.colors.borderLight}
           thumbTintColor={theme.colors.actionPrimary} // Dark Charcoal
         />
-        
+
         <View style={styles.sliderLabels}>
           <Typography variant="caption">None</Typography>
           <Typography variant="caption">Severe</Typography>
@@ -97,7 +97,7 @@ export default function CheckInScreen() {
           <Typography variant="h3">Energy Level</Typography>
           <Typography variant="h1">{energy}</Typography>
         </View>
-        
+
         <Slider
           style={styles.slider}
           minimumValue={1}
@@ -109,7 +109,7 @@ export default function CheckInScreen() {
           maximumTrackTintColor={theme.colors.borderLight}
           thumbTintColor={theme.colors.actionPrimary}
         />
-        
+
         <View style={styles.sliderLabels}>
           <Typography variant="caption">Exhausted</Typography>
           <Typography variant="caption">Peak</Typography>
@@ -119,17 +119,13 @@ export default function CheckInScreen() {
       {/* --- Info Card --- */}
       <Card style={[styles.cardSpacing, styles.infoCard]} noShadow>
         <Typography variant="body" color={theme.colors.textPrimary}>
-          This data is used to tailor today's session to your current state.
+          {"This data is used to tailor today's session to your current state."}
         </Typography>
       </Card>
 
       {/* --- Action --- */}
       <View style={styles.footer}>
-        <Button 
-          title="Build Session" 
-          onPress={handleBuildSession} 
-          loading={isGenerating}
-        />
+        <Button title="Build Session" onPress={handleBuildSession} loading={isGenerating} />
       </View>
     </ScrollView>
   );
@@ -140,7 +136,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: theme.colors.background,
     padding: theme.spacing.xl,
-    paddingTop: 80, 
+    paddingTop: 80,
   },
   header: {
     marginBottom: theme.spacing.xxxl,
@@ -164,12 +160,12 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
   infoCard: {
-    backgroundColor: '#EBEBEB', 
+    backgroundColor: '#EBEBEB',
     marginTop: theme.spacing.md,
   },
   footer: {
-    marginTop: 'auto', 
+    marginTop: 'auto',
     paddingTop: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
-  }
+  },
 });

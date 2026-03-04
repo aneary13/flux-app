@@ -12,7 +12,7 @@ interface UserStoreActions {
   logout: () => void;
   setUserState: (state: UserState) => void;
   setHydrated: (status: boolean) => void;
-  
+
   // Maps the View Model into the exact payload the backend expects
   buildSessionPayload: (kneePain: number, energy: number) => GenerateSessionRequest | null;
 }

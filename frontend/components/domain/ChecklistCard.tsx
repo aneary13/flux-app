@@ -20,7 +20,7 @@ interface ChecklistCardProps {
  */
 function ChecklistItem({ exercise }: { exercise: Exercise }) {
   const { logSet, loggedSets } = useSessionStore();
-  
+
   const exerciseId = exercise.id || exercise.name;
   const currentLog = loggedSets[exerciseId]?.[0] || {};
   const isChecked = !!currentLog.completed;
@@ -31,20 +31,13 @@ function ChecklistItem({ exercise }: { exercise: Exercise }) {
   };
 
   return (
-    <TouchableOpacity 
-      style={styles.itemRow} 
-      activeOpacity={0.7} 
-      onPress={handleToggle}
-    >
-      <Ionicons 
-        name={isChecked ? "checkmark-circle" : "ellipse-outline"} 
-        size={28} 
-        color={isChecked ? theme.colors.stateGreen : theme.colors.borderLight} 
+    <TouchableOpacity style={styles.itemRow} activeOpacity={0.7} onPress={handleToggle}>
+      <Ionicons
+        name={isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+        size={28}
+        color={isChecked ? theme.colors.stateGreen : theme.colors.borderLight}
       />
-      <Typography 
-        variant="body" 
-        style={[styles.itemText, isChecked && styles.itemTextChecked]}
-      >
+      <Typography variant="body" style={[styles.itemText, isChecked && styles.itemTextChecked]}>
         {exercise.name}
       </Typography>
     </TouchableOpacity>
@@ -62,7 +55,7 @@ export function ChecklistCard({ exercises, title }: ChecklistCardProps) {
   if (!exercises || exercises.length === 0) return null;
 
   // Calculate how many items are checked for the summary text
-  const completedCount = exercises.filter(ex => {
+  const completedCount = exercises.filter((ex) => {
     const exId = ex.id || ex.name;
     return !!loggedSets[exId]?.[0]?.completed;
   }).length;
@@ -70,8 +63,8 @@ export function ChecklistCard({ exercises, title }: ChecklistCardProps) {
   return (
     <View style={styles.cardContainer}>
       {/* Touchable Header for Toggling */}
-      <TouchableOpacity 
-        style={styles.headerRow} 
+      <TouchableOpacity
+        style={styles.headerRow}
         activeOpacity={0.7}
         onPress={() => {
           setIsExpanded(!isExpanded);
@@ -79,8 +72,12 @@ export function ChecklistCard({ exercises, title }: ChecklistCardProps) {
         }}
       >
         <View>
-          {title && <Typography variant="h3" style={styles.title}>{title}</Typography>}
-          
+          {title && (
+            <Typography variant="h3" style={styles.title}>
+              {title}
+            </Typography>
+          )}
+
           {/* Show summary text ONLY when collapsed */}
           {!isExpanded && (
             <Typography variant="caption" color={theme.colors.textMuted}>
@@ -89,13 +86,13 @@ export function ChecklistCard({ exercises, title }: ChecklistCardProps) {
           )}
         </View>
 
-        <Ionicons 
-          name={isExpanded ? "chevron-up" : "chevron-down"} 
-          size={24} 
-          color={theme.colors.textMuted} 
+        <Ionicons
+          name={isExpanded ? 'chevron-up' : 'chevron-down'}
+          size={24}
+          color={theme.colors.textMuted}
         />
       </TouchableOpacity>
-      
+
       {/* Expandable List Content */}
       {isExpanded && (
         <View style={styles.listContainer}>
@@ -125,7 +122,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     marginTop: theme.spacing.md, // Add the spacing back only when expanded
-    gap: theme.spacing.md, 
+    gap: theme.spacing.md,
   },
   itemRow: {
     flexDirection: 'row',
@@ -139,5 +136,5 @@ const styles = StyleSheet.create({
   itemTextChecked: {
     color: theme.colors.textMuted,
     textDecorationLine: 'line-through',
-  }
+  },
 });

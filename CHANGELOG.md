@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Authentication Prep**: API and Database schema structured to support isolated user states, currently stubbed with `DUMMY_USER_ID`.
+- **Self-Healing Backend**: Introduced an auto-seeding mechanism on backend startup. If the database lacks configuration state, the system now automatically parses the core YAML files to populate the `exercises` and `user_configs` tables.
+
+### Changed
+
+- **Pattern Debt Refactor**: Transitioned movement pattern tracking from an abstract integer counter (`pattern_debts`) to a strict ISO 8601 timestamp (`last_trained`). Updated backend generation tie-break logic, API payloads, and the Supabase JSON schema to calculate freshness based on elapsed time, allowing the frontend to display intuitive, human-readable recovery statuses.
+
+### Fixed
+
+- **Set Logging UX**: Resolved a presentation layer bug that required users to double-tap the submit button to log a set. Adjusted the `keyboardShouldPersistTaps` property on the active session `ScrollView` to dismiss the keyboard and submit the payload in a single action.
 
 ---
 

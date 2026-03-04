@@ -17,15 +17,7 @@ export function Typography({
   ...rest
 }: TypographyProps) {
   return (
-    <Text
-      style={[
-        styles.base,
-        styles[variant],
-        { color, textAlign: align },
-        style,
-      ]}
-      {...rest}
-    >
+    <Text style={[styles.base, styles[variant], { color, textAlign: align }, style]} {...rest}>
       {children}
     </Text>
   );

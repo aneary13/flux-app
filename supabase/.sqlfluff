@@ -1,0 +1,8 @@
+[sqlfluff]
+dialect = postgres
+# Set a standard max line length that matches our Python (Ruff) config
+max_line_length = 100
+
+[sqlfluff:rules:references.keywords]
+# RF04: Ignore unreserved Postgres keywords that we use as column names
+ignore_words = name,data

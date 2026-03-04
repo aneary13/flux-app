@@ -1,0 +1,25 @@
+target-version = "py313"
+line-length = 100
+exclude = [".venv", "__pycache__", ".git", ".mypy_cache", ".ruff_cache"]
+
+[lint]
+# E: pycodestyle errors
+# F: Pyflakes
+# I: isort
+# UP: pyupgrade
+# B: flake8-bugbear
+# SIM: flake8-simplify
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = []
+
+# Treat all unfixable errors as warnings locally, but CI will catch them
+unfixable = []
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[lint.isort]
+known-first-party = ["core"]
