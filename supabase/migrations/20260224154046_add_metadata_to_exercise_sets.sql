@@ -1,1 +1,1 @@
-ALTER TABLE workout_sets ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE workout_sets ADD COLUMN metadata JSONB DEFAULT '{}'::JSONB;
