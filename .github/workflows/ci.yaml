@@ -49,7 +49,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: cd frontend && npm ci
+        run: cd frontend && npm ci --ignore-scripts
 
       - name: Lint (ESLint)
         run: cd frontend && npm run lint
@@ -67,6 +67,8 @@ jobs:
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
+        with:
+          version: 2.75.0
 
       - name: Verify SQL Format
         run: supabase db lint

@@ -3,7 +3,7 @@ import os
 from typing import Any, cast
 
 import yaml
-from supabase import Client  # type: ignore
+from supabase import Client
 
 # Configure standard logging
 logging.basicConfig(level=logging.INFO)
@@ -69,8 +69,10 @@ def auto_seed_database(supabase: Client, dummy_user_id: str) -> None:
                     }
                 )
 
-            # Upsert relying on the UNIQUE(name) constraint
-            supabase.table("exercises").upsert(exercise_payload, on_conflict="name").execute()
+            # Upsert relying on the UNIQUE(name) constraint - Cast payload to Any
+            supabase.table("exercises").upsert(
+                cast(Any, exercise_payload), on_conflict="name"
+            ).execute()
             logger.info(f"FLUX Engine: Seeded {len(exercise_payload)} exercises.")
 
         # -----------------------------------------
@@ -82,9 +84,9 @@ def auto_seed_database(supabase: Client, dummy_user_id: str) -> None:
                 yaml_data = load_yaml(f"{slug}.yaml")
                 config_payloads.append({"user_id": dummy_user_id, "slug": slug, "data": yaml_data})
 
-            # Upsert relying on the UNIQUE(user_id, slug) constraint
+            # Upsert relying on the UNIQUE(user_id, slug) constraint - Cast payload to Any
             supabase.table("user_configs").upsert(
-                config_payloads, on_conflict="user_id, slug"
+                cast(Any, config_payloads), on_conflict="user_id, slug"
             ).execute()
             logger.info("FLUX Engine: Seeded core user_configs.")
 

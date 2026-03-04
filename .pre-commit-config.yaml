@@ -32,7 +32,7 @@ repos:
         files: \.sql$
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.10.7
+    rev: 0.10.8
     hooks:
       - id: uv-lock
         name: Enforce lockfile (uv)
@@ -58,19 +58,6 @@ repos:
         name: Format (Ruff)
         files: ^backend/
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
-    hooks:
-      - id: mypy
-        name: Type Check (mypy)
-        files: ^backend/.*\.py$
-        args: [--config-file=backend/mypy.ini]
-        additional_dependencies:
-          - pydantic>=2.0.0
-          - fastapi>=0.100.0
-          - types-PyYAML
-          - pytest
-
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:
@@ -90,6 +77,12 @@ repos:
 
   - repo: local
     hooks:
+      - id: backend-mypy
+        name: Type Check Backend (mypy)
+        entry: bash -c 'cd backend && uv run mypy . --config-file mypy.ini'
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
       - id: frontend-format
         name: Format Frontend (Prettier)
         entry: bash -c 'cd frontend && npx prettier --write "${@#frontend/}"' --

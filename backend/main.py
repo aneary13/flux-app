@@ -8,7 +8,7 @@ from typing import Any, cast
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from supabase import Client, create_client  # type: ignore
+from supabase import Client, create_client
 
 from core.models import (
     CompleteSessionRequest,
@@ -28,10 +28,10 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Supabase Client
-supabase_url = os.environ.get("SUPABASE_URL")
+# Initialize Supabase Client (Added empty string fallbacks for strict typing)
+supabase_url = os.environ.get("SUPABASE_URL", "")
 # IMPORTANT: For the API, we use the standard ANON key, not the service_role key.
-supabase_key = os.environ.get("SUPABASE_KEY")
+supabase_key = os.environ.get("SUPABASE_KEY", "")
 supabase: Client = create_client(supabase_url, supabase_key)
 
 DUMMY_USER_ID = "00000000-0000-0000-0000-000000000000"
@@ -87,9 +87,13 @@ def get_bootstrap_data() -> dict[str, Any]:
         exercises_response = supabase.table("exercises").select("*").execute()
 
         # 3. Format the data into a clean dictionary
-        system_configs = {row["slug"]: row["data"] for row in configs_response.data}
+        # Cast the response so Mypy knows it's a list of dicts
+        configs_data = cast(list[dict[str, Any]], configs_response.data)
+        system_configs = {row["slug"]: row["data"] for row in configs_data}
 
-        return {"configs": system_configs, "exercises": exercises_response.data}
+        exercises_data = cast(list[dict[str, Any]], exercises_response.data)
+
+        return {"configs": system_configs, "exercises": exercises_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -115,8 +119,9 @@ def get_user_state() -> UserStateResponse:
             "conditioning_levels": {"HIIT": 1, "SIT": 1},
         }
 
-        if response.data and response.data[0].get("data"):
-            raw_state = response.data[0]["data"]
+        data_list = cast(list[dict[str, Any]], response.data)
+        if data_list and data_list[0].get("data"):
+            raw_state = cast(dict[str, Any], data_list[0]["data"])
 
         # Explicitly type the dictionaries so Mypy knows they aren't generic objects
         # Force Mypy to trust the JSON schema we expect
@@ -175,10 +180,11 @@ def generate_workout_session(request: GenerateSessionRequest) -> dict[str, Any]:
             .eq("user_id", DUMMY_USER_ID)
             .execute()
         )
-        system_configs = {row["slug"]: row["data"] for row in configs_response.data}
+        configs_data = cast(list[dict[str, Any]], configs_response.data)
+        system_configs = {row["slug"]: row["data"] for row in configs_data}
 
         exercises_response = supabase.table("exercises").select("*").execute()
-        exercises_catalog = exercises_response.data
+        exercises_catalog = cast(list[dict[str, Any]], exercises_response.data)
 
         resolver = WorkoutResolver(configs=system_configs, exercises=exercises_catalog)
 
@@ -211,7 +217,8 @@ def start_session(request: StartSessionRequest) -> dict[str, Any]:
             .eq("user_id", DUMMY_USER_ID)
             .execute()
         )
-        system_configs = {row["slug"]: row["data"] for row in configs_response.data}
+        configs_data = cast(list[dict[str, Any]], configs_response.data)
+        system_configs = {row["slug"]: row["data"] for row in configs_data}
 
         # 2. Extract readiness variables
         knee_pain = request.readiness.get("knee_pain", 0)
@@ -230,13 +237,15 @@ def start_session(request: StartSessionRequest) -> dict[str, Any]:
             "status": "IN_PROGRESS",
         }
 
-        response = supabase.table("workout_sessions").upsert(session_data).execute()
+        # Cast payload to Any
+        response = supabase.table("workout_sessions").upsert(cast(Any, session_data)).execute()
 
         if not response.data:
             raise Exception("Failed to start session.")
 
+        res_data = cast(list[dict[str, Any]], response.data)
         return {
-            "session_id": response.data[0]["id"],
+            "session_id": res_data[0]["id"],
             "derived_archetype": derived_archetype,
             "derived_state": state,
         }
@@ -260,8 +269,9 @@ def log_atomic_set(session_id: str, request: LogSetRequest) -> dict[str, str]:
             "metadata": request.metadata,
         }
 
+        # Cast payload to Any to bypass SDK JSON limitations
         supabase.table("workout_sets").upsert(
-            set_data, on_conflict="session_id, exercise_name, set_index"
+            cast(Any, set_data), on_conflict="session_id, exercise_name, set_index"
         ).execute()
         return {"status": "Set logged successfully"}
     except Exception as e:
@@ -281,7 +291,9 @@ def complete_session(session_id: str, request: CompleteSessionRequest) -> dict[s
             "summary_notes": request.summary_notes,
             "completed_at": datetime.now(UTC).isoformat(),
         }
-        supabase.table("workout_sessions").update(update_data).eq("id", session_id).execute()
+        supabase.table("workout_sessions").update(cast(Any, update_data)).eq(
+            "id", session_id
+        ).execute()
 
         # 2. Fetch the user's current state
         state_response = (
@@ -292,9 +304,10 @@ def complete_session(session_id: str, request: CompleteSessionRequest) -> dict[s
             .execute()
         )
 
-        if state_response.data:
-            current_state = state_response.data[0]["data"]
-            state_row_id = state_response.data[0]["id"]
+        state_data = cast(list[dict[str, Any]], state_response.data)
+        if state_data:
+            current_state = cast(dict[str, Any], state_data[0]["data"])
+            state_row_id = state_data[0]["id"]
         else:
             current_state = {
                 "last_trained": {"SQUAT": None, "PUSH": None, "HINGE": None, "PULL": None},
@@ -311,15 +324,6 @@ def complete_session(session_id: str, request: CompleteSessionRequest) -> dict[s
                 "PULL": None,
             }
 
-        # ---------------------------------------------------------
-        # TODO: VERIFY WORK AGAINST ACTUAL SETS LOGGED
-        # Currently, we blindly trust the frontend payload to progress levels.
-        # Fix: Query the `workout_sets` table for this `session_id`.
-        # - Only reset anchor_pattern debt if a matching working set exists.
-        # - Only bump conditioning level if a conditioning set exists.
-        # This handles the "ran out of time at the gym" edge case.
-        # ---------------------------------------------------------
-
         # 3. Update specific anchor pattern with UTC Now
         if request.anchor_pattern:
             current_state["last_trained"][request.anchor_pattern] = datetime.now(UTC).isoformat()
@@ -334,12 +338,12 @@ def complete_session(session_id: str, request: CompleteSessionRequest) -> dict[s
 
         # 5. Save the new state to Supabase
         if state_row_id:
-            supabase.table("user_configs").update({"data": current_state}).eq(
+            supabase.table("user_configs").update(cast(Any, {"data": current_state})).eq(
                 "id", state_row_id
             ).execute()
         else:
             supabase.table("user_configs").upsert(
-                {"user_id": DUMMY_USER_ID, "slug": "state", "data": current_state}
+                cast(Any, {"user_id": DUMMY_USER_ID, "slug": "state", "data": current_state})
             ).execute()
 
         return {"status": "Session completed and progression state updated successfully."}
