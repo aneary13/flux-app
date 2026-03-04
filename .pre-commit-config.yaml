@@ -1,0 +1,113 @@
+default_install_hook_types: [pre-commit]
+
+repos:
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Format (trailing-whitespace)
+      - id: end-of-file-fixer
+        name: Format (end-of-file-fixer)
+      - id: check-yaml
+        name: Lint (check-yaml)
+      - id: check-toml
+        name: Lint (check-toml)
+      - id: check-added-large-files
+        name: Lint (check-added-large-files)
+        args: ['--maxkb=500']
+      - id: check-case-conflict
+        name: Security (check-case-conflict)
+
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 4.0.4
+    hooks:
+      - id: sqlfluff-fix
+        name: Format (sqlfluff)
+        args: ["--config", "supabase/.sqlfluff"]
+        files: \.sql$
+      - id: sqlfluff-lint
+        name: Lint (sqlfluff)
+        args: ["--config", "supabase/.sqlfluff"]
+        files: \.sql$
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.10.7
+    hooks:
+      - id: uv-lock
+        name: Enforce lockfile (uv)
+        args: ["--project", "backend"]
+        files: ^backend/(pyproject\.toml|uv\.lock)$
+      - id: uv-export
+        name: Export requirements.txt (uv)
+        args: [
+          "--project", "backend",
+          "--output-file", "backend/requirements.txt",
+          "--no-hashes"
+        ]
+        files: ^backend/(pyproject\.toml|uv\.lock)$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.4
+    hooks:
+      - id: ruff
+        name: Lint (Ruff)
+        args: [ --fix ]
+        files: ^backend/
+      - id: ruff-format
+        name: Format (Ruff)
+        files: ^backend/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.1
+    hooks:
+      - id: mypy
+        name: Type Check (mypy)
+        files: ^backend/.*\.py$
+        args: [--config-file=backend/mypy.ini]
+        additional_dependencies:
+          - pydantic>=2.0.0
+          - fastapi>=0.100.0
+          - types-PyYAML
+          - pytest
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: Security (detect-secrets)
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package\.lock\.json|uv\.lock
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        name: Security (bandit)
+        args: ["-c", "backend/pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: frontend-format
+        name: Format Frontend (Prettier)
+        entry: bash -c 'cd frontend && npx prettier --write "${@#frontend/}"' --
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx|json|md)$
+      - id: frontend-eslint
+        name: Lint Frontend (ESLint)
+        entry: bash -c 'cd frontend && npx eslint --fix "${@#frontend/}"' --
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx)$
+      - id: frontend-typecheck
+        name: Type Check Frontend (tsc)
+        entry: bash -c 'cd frontend && npm run type-check'
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$
+        pass_filenames: false
+      - id: frontend-circular-check
+        name: Check Circular Dependencies (Madge)
+        entry: bash -c 'cd frontend && npx madge --circular --extensions ts,tsx .'
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$

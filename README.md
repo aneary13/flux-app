@@ -6,7 +6,7 @@ FLUX is a premium, auto-regulated training application. Instead of relying on a 
 
 ## 🏗 System Architecture
 
-FLUX is built on a decoupled, three-pillar architecture. 
+FLUX is built on a decoupled, three-pillar architecture.
 
 ### 1. The Frontend: "The Thin Client"
 
@@ -18,7 +18,7 @@ FLUX is built on a decoupled, three-pillar architecture.
 
 * **Location:** [`/backend`](./backend/README.md)
 * **Tech:** Python 3.13+, FastAPI, `uv`, Pydantic V2.
-* **Role:** The decision engine. It reads the user's biological inputs, evaluates pattern freshness (e.g., real-time elapsed duration since the last Hinge session), and generates a fully structured, state-appropriate training session (Performance vs. Recovery). 
+* **Role:** The decision engine. It reads the user's biological inputs, evaluates pattern freshness (e.g., real-time elapsed duration since the last Hinge session), and generates a fully structured, state-appropriate training session (Performance vs. Recovery).
 
 ### 3. The Database: "The Source of Truth"
 
@@ -55,5 +55,5 @@ To get the entire FLUX stack running on your local machine, follow this high-lev
 ## 🌍 Production Infrastructure
 
 * **Mobile App:** Built into a standalone `.apk` via **Expo Application Services (EAS)**.
-* **API Server:** Deployed as a Web Service on **Render**. 
+* **API Server:** Deployed as a Web Service on **Render**.
 * **Database:** Hosted on **Supabase Cloud**, heavily utilizing Row Level Security (RLS) to isolate user state documents.
