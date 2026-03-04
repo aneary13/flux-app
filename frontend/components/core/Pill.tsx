@@ -28,5 +28,5 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: '500',
     color: theme.colors.textPrimary,
-  }
+  },
 });

@@ -1,5 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, ScrollView, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+} from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserStore } from '../store/useUserStore';
@@ -11,11 +18,11 @@ import { theme } from '../theme';
 
 const getPatternColor = (statusText: string) => {
   switch (statusText) {
-    case 'Fatigued': 
+    case 'Fatigued':
       return theme.colors.stateRed;
-    case 'Recovering': 
+    case 'Recovering':
       return theme.colors.stateOrange;
-    case 'Fully Primed': 
+    case 'Fully Primed':
     default:
       return theme.colors.stateGreen;
   }
@@ -23,11 +30,11 @@ const getPatternColor = (statusText: string) => {
 
 const getStatusIcon = (statusText: string) => {
   switch (statusText) {
-    case 'Fatigued': 
+    case 'Fatigued':
       return 'alert-circle-outline';
-    case 'Recovering': 
+    case 'Recovering':
       return 'time-outline';
-    case 'Fully Primed': 
+    case 'Fully Primed':
     default:
       return 'checkmark-circle-outline';
   }
@@ -40,10 +47,10 @@ const generateDynamicGreeting = (patterns: Record<string, PatternReadiness>) => 
 
   if (primedPatterns.length === 0) {
     return {
-      headline: "Engine Cooling",
-      subHeadlineStart: "Your movement patterns are ",
-      highlightedPatterns: "recovering",
-      subHeadlineEnd: ". Focus on conditioning."
+      headline: 'Engine Cooling',
+      subHeadlineStart: 'Your movement patterns are ',
+      highlightedPatterns: 'recovering',
+      subHeadlineEnd: '. Focus on conditioning.',
     };
   }
 
@@ -55,24 +62,24 @@ const generateDynamicGreeting = (patterns: Record<string, PatternReadiness>) => 
   } else if (primedPatterns.length === 1) {
     highlightedPatterns = primedPatterns[0];
   }
-  
+
   return {
-    headline: "Ready to Train",
-    subHeadlineStart: "Your ",
+    headline: 'Ready to Train',
+    subHeadlineStart: 'Your ',
     highlightedPatterns: highlightedPatterns,
-    subHeadlineEnd: ` pattern${primedPatterns.length >= 1 ? 's are' : ' is'} fully primed.`
+    subHeadlineEnd: ` pattern${primedPatterns.length >= 1 ? 's are' : ' is'} fully primed.`,
   };
 };
 
 const PROTOCOL_NAMES: Record<string, string> = {
-  'HIIT': 'High Intensity Interval Training',
-  'SIT': 'Sprint Interval Training',
+  HIIT: 'High Intensity Interval Training',
+  SIT: 'Sprint Interval Training',
 };
 
 export default function HomeDashboard() {
   const router = useRouter();
   const { stateDocument, setUserState } = useUserStore();
-  const [isInitialLoad, setIsInitialLoad] = useState(!stateDocument); 
+  const [isInitialLoad, setIsInitialLoad] = useState(!stateDocument);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,12 +92,14 @@ export default function HomeDashboard() {
             setIsInitialLoad(false);
           }
         } catch (error) {
-          console.error("Failed to fetch user state:", error);
+          console.error('Failed to fetch user state:', error);
           if (isActive) setIsInitialLoad(false);
         }
       }
       loadUserState();
-      return () => { isActive = false; };
+      return () => {
+        isActive = false;
+      };
     }, [setUserState])
   );
 
@@ -101,7 +110,8 @@ export default function HomeDashboard() {
 
   const primedCount = useMemo(() => {
     if (!stateDocument) return 0;
-    return Object.values(stateDocument.patterns).filter(p => p.status_text === 'Fully Primed').length;
+    return Object.values(stateDocument.patterns).filter((p) => p.status_text === 'Fully Primed')
+      .length;
   }, [stateDocument]);
 
   if (isInitialLoad || !stateDocument || !greeting) {
@@ -117,11 +127,7 @@ export default function HomeDashboard() {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
-        showsVerticalScrollIndicator={false}
-      >
-        
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* --- Header Section --- */}
         <View style={styles.header}>
           <Text style={styles.headline}>{greeting.headline}</Text>
@@ -137,10 +143,12 @@ export default function HomeDashboard() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Movement Readiness</Text>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{primedCount}/{totalPatterns} Primed</Text>
+              <Text style={styles.badgeText}>
+                {primedCount}/{totalPatterns} Primed
+              </Text>
             </View>
           </View>
-          
+
           <View style={styles.cardList}>
             {Object.entries(stateDocument.patterns).map(([pattern, data]) => {
               const { status_text, days_since } = data;
@@ -173,12 +181,12 @@ export default function HomeDashboard() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Engine Capacity</Text>
           </View>
-          
+
           <View style={styles.cardList}>
             {Object.entries(stateDocument.conditioning_levels)
               .filter(([protocol]) => protocol !== 'SS') // Hide Steady State
               .map(([protocol, level]) => {
-                const fullName = PROTOCOL_NAMES[protocol] || protocol; 
+                const fullName = PROTOCOL_NAMES[protocol] || protocol;
 
                 return (
                   <View key={protocol} style={styles.engineCard}>
@@ -193,7 +201,7 @@ export default function HomeDashboard() {
                     </View>
                   </View>
                 );
-            })}
+              })}
           </View>
         </View>
 
@@ -203,7 +211,7 @@ export default function HomeDashboard() {
 
       {/* --- Sticky Bottom Action Button --- */}
       <View style={styles.stickyFooter}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.primaryButton}
           activeOpacity={0.9}
           onPress={() => router.push('/(session)/check-in')}
@@ -234,7 +242,7 @@ const styles = StyleSheet.create({
     paddingTop: 80,
     paddingBottom: 40,
   },
-  
+
   // Header
   header: {
     marginBottom: theme.spacing.xxl,
@@ -316,7 +324,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 4,
   },
-  
+
   // Card Specific Internals
   pillIndicator: {
     width: 6,

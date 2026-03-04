@@ -1,8 +1,5 @@
 import { create } from 'zustand';
-import { 
-  GeneratedSessionResponse, 
-  ConditioningProtocol,
-} from '../types/api';
+import { GeneratedSessionResponse, ConditioningProtocol } from '../types/api';
 
 export interface LoggedSet {
   weight?: number;
@@ -15,17 +12,19 @@ export interface LoggedSet {
   completed?: boolean;
   is_warmup?: boolean;
   rpe?: number;
+  is_benchmark?: boolean;
+  metadata?: Record<string, unknown>;
 }
 
 interface SessionState {
-  readiness: { knee_pain: number; energy: number; } | null;
+  readiness: { knee_pain: number; energy: number } | null;
   sessionData: GeneratedSessionResponse | null;
   sessionId: string | null;
   loggedSets: Record<string, LoggedSet[]>;
   exerciseNotes: Record<string, string>;
   summaryNotes: string;
-  completedConditioningProtocol?: ConditioningProtocol; 
-  sessionStartTime: number | null; 
+  completedConditioningProtocol?: ConditioningProtocol;
+  sessionStartTime: number | null;
   blockDurations: Record<string, number>; // Maps Block Type to milliseconds
 }
 
@@ -37,7 +36,7 @@ interface SessionActions {
   setExerciseNote: (exerciseId: string, note: string) => void;
   setSummaryNote: (note: string) => void;
   setCompletedConditioning: (protocol: ConditioningProtocol) => void;
-  addBlockTime: (blockType: string, timeMs: number) => void; 
+  addBlockTime: (blockType: string, timeMs: number) => void;
   clearSession: () => void;
 }
 
@@ -51,22 +50,22 @@ export const useSessionStore = create<SessionStore>((set) => ({
   exerciseNotes: {},
   summaryNotes: '',
   completedConditioningProtocol: undefined,
-  
+
   // Initialize Timers
-  sessionStartTime: null, 
+  sessionStartTime: null,
   blockDurations: {},
 
   setReadiness: (knee_pain, energy) => set({ readiness: { knee_pain, energy } }),
   setSessionData: (data) => set({ sessionData: data }),
-  
-  startSession: (id) => 
-    set({ 
-      sessionId: id, 
-      sessionStartTime: Date.now(), // Start the master clock
-      blockDurations: {} // Reset block clocks
-    }), 
 
-  logSet: (exerciseId, setIndex, setData) => 
+  startSession: (id) =>
+    set({
+      sessionId: id,
+      sessionStartTime: Date.now(), // Start the master clock
+      blockDurations: {}, // Reset block clocks
+    }),
+
+  logSet: (exerciseId, setIndex, setData) =>
     set((state) => {
       const currentSets = state.loggedSets[exerciseId] || [];
       const updatedSets = [...currentSets];
@@ -84,11 +83,11 @@ export const useSessionStore = create<SessionStore>((set) => ({
     set((state) => ({
       blockDurations: {
         ...state.blockDurations,
-        [blockType]: (state.blockDurations[blockType] || 0) + timeMs
-      }
+        [blockType]: (state.blockDurations[blockType] || 0) + timeMs,
+      },
     })),
 
-  clearSession: () => 
+  clearSession: () =>
     set({
       readiness: null,
       sessionData: null,

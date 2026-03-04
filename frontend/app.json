@@ -5,9 +5,7 @@
     "version": "1.0.0",
     "scheme": "flux",
     "userInterfaceStyle": "light",
-    "plugins": [
-      "expo-router"
-    ],
+    "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true
     },

@@ -17,18 +17,18 @@ export interface PatternReadiness {
 
 // --- User State Management ---
 export interface UserState {
-  patterns: Record<MovementPattern, PatternReadiness>; 
-  conditioning_levels: Partial<Record<ConditioningProtocol, number>>; 
+  patterns: Record<MovementPattern, PatternReadiness>;
+  conditioning_levels: Partial<Record<ConditioningProtocol, number>>;
 }
 
 // --- Exercise & Block Architecture ---
 export interface Exercise {
   id?: string; // Optional fallback for React keys
   name: string;
-  is_unilateral: boolean; 
+  is_unilateral: boolean;
   tracking_unit: TrackingUnit;
   load_type: LoadType;
-  
+
   // Conditioning-Specific Fields
   is_conditioning?: boolean;
   description?: string;
@@ -56,27 +56,27 @@ export interface GenerateSessionRequest {
 
 export interface SessionMetadata {
   session_id?: string;
-  archetype: Archetype; 
+  archetype: Archetype;
   state: BiologicalState;
-  anchor_pattern: MovementPattern; 
+  anchor_pattern: MovementPattern;
 }
 
 export interface GeneratedSessionResponse {
-  metadata: SessionMetadata; 
-  blocks: SessionBlock[]; 
+  metadata: SessionMetadata;
+  blocks: SessionBlock[];
 }
 
 // --- Session Execution Payloads ---
 export interface StartSessionRequest {
   readiness: {
-    knee_pain: number; 
-    energy: number; 
+    knee_pain: number;
+    energy: number;
   };
 }
 
 export interface CompleteSessionRequest {
-  anchor_pattern: MovementPattern; 
-  completed_conditioning_protocol?: ConditioningProtocol; 
+  anchor_pattern: MovementPattern;
+  completed_conditioning_protocol?: ConditioningProtocol;
   exercise_notes: Record<string, string>; // Maps exercise names/IDs to user notes
-  summary_notes: string; 
+  summary_notes: string;
 }

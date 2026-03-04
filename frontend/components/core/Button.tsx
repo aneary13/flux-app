@@ -1,10 +1,10 @@
 import React from 'react';
-import { 
-  TouchableOpacity, 
-  Text, 
-  StyleSheet, 
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
   TouchableOpacityProps,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { theme } from '../../theme';
 
@@ -22,7 +22,6 @@ export function Button({
   style,
   ...rest
 }: ButtonProps) {
-  
   const isPrimary = variant === 'primary';
   const isOutline = variant === 'outline';
   const isDisabled = disabled || loading;
@@ -44,11 +43,7 @@ export function Button({
         <ActivityIndicator color={isPrimary ? theme.colors.surface : theme.colors.actionPrimary} />
       ) : (
         <Text
-          style={[
-            styles.text,
-            isPrimary && styles.textPrimary,
-            isOutline && styles.textOutline,
-          ]}
+          style={[styles.text, isPrimary && styles.textPrimary, isOutline && styles.textOutline]}
         >
           {title}
         </Text>

@@ -1,15 +1,16 @@
 # FLUX App (Frontend)
 
-This is the React Native (Expo) frontend for **FLUX**, a premium biological training engine. 
+This is the React Native (Expo) frontend for **FLUX**, a premium biological training engine.
 
 The app acts as a "Thin Client"—it focuses on delivering a beautiful, offline-tolerant, and highly responsive user experience, while deferring complex progression math and session generation to the FastAPI backend.
 
 ## 🛠 Tech Stack
-* **Framework:** React Native / Expo
-* **Routing:** Expo Router (File-based routing)
-* **State Management:** Zustand
-* **Language:** TypeScript
-* **Build System:** EAS (Expo Application Services)
+
+- **Framework:** React Native / Expo
+- **Routing:** Expo Router (File-based routing)
+- **State Management:** Zustand
+- **Language:** TypeScript
+- **Build System:** EAS (Expo Application Services)
 
 ## 📁 Project Structure
 
@@ -44,9 +45,9 @@ The application relies on **Zustand** for state management, split into two disti
 
 The UI adheres to a "Premium Biological Tech" aesthetic. We strictly map the `status_text` strings returned by the backend View Model to our designated theme colors defined in `theme/index.ts`:
 
-* **Sage Green** (`#8FA58A`): Fully Primed
-* **Earthy Sand** (`#D4A373`): Priming / Recovering
-* **Dusty Rose** (`#CD7B7B`): Fatigued / Engine Cooling
+- **Sage Green** (`#8FA58A`): Fully Primed
+- **Earthy Sand** (`#D4A373`): Priming / Recovering
+- **Dusty Rose** (`#CD7B7B`): Fatigued / Engine Cooling
 
 ## 🚀 Usage & Development Instructions
 
@@ -68,7 +69,7 @@ npm install
 npx expo start
 ```
 
-*Note: If testing on a physical device on a strict Wi-Fi network, run `npx expo start --tunnel` to bypass AP isolation.*
+_Note: If testing on a physical device on a strict Wi-Fi network, run `npx expo start --tunnel` to bypass AP isolation._
 
 ### 3. Building for Production (Android APK)
 
