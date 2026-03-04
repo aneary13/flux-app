@@ -4,7 +4,7 @@ SQUAT:
   MAIN: # RED is omitted; the Template for RED days simply won't call SQUAT:MAIN
     GREEN:
       - "Back Squat"
-    ORANGE: 
+    ORANGE:
       - "Box Squat (Vertical Shin)"
   ACCESSORY:
     GREEN:

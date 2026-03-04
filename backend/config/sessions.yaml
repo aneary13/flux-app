@@ -8,22 +8,22 @@ PERFORMANCE:
         - "MOBILITY:DYNAMIC"    # Static: Always do the flow
         - "ISOMETRIC:PATELLAR"  # Static: Always do the knee iso
         - "CORE"                # Dynamic: Rotates TRANSVERSE -> SAGITTAL -> FRONTAL
-    
+
     - label: "Plyometrics & Power"
       type: "POWER"
       components:
         - "RFD"                 # Dynamic: Resolves based on state
-    
+
     - label: "Primary Strength"
       type: "MAIN"
       components:
         - "MAIN_PATTERN"        # Dynamic: Resolves MAIN (SQUAT, HINGE, etc.)
-    
+
     - label: "Accessory Lifts"
       type: "ACCESSORIES"
       components:
         - "RELATED_ACCESSORIES" # Dynamic: Resolves based on MAIN
-    
+
     - label: "Off-Feet Conditioning"
       type: "CONDITIONING"
       components:
@@ -36,20 +36,20 @@ RECOVERY:
       components:
         - "MOBILITY:DYNAMIC"    # Static: Always do the flow
         - "CORE"                # Dynamic: Rotates TRANSVERSE -> SAGITTAL -> FRONTAL
-    
+
     - label: "Isometrics"
       type: "MAIN"
-      components: 
+      components:
         - "ISOMETRIC:PATELLAR"  # Static: Always do the knee iso
         - "ISOMETRIC:HAMSTRING" # Static: Always do the hamstring iso
-    
+
     - label: "Upper Body Accessories"
       type: "ACCESSORY"
       components:
         - "PUSH:ACCESSORY"      # Dynamic: Picks highest debt (e.g. Vertical)
         - "PULL:ACCESSORY"      # Dynamic: Sees the Push choice and picks complement (Horizontal)
-    
+
     - label: "Off-Feet Conditioning"
       type: "CONDITIONING"
-      components: 
+      components:
         - "CONDITIONING:SS"     # Static: Always do the steady state
