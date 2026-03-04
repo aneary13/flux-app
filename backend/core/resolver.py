@@ -244,6 +244,7 @@ class WorkoutResolver:
                 "tracking_unit": tracking_unit,
                 "is_conditioning": True,
                 "description": description[protocol],
+                "protocol": protocol,
                 "rounds": level_details.get("rounds", 1),
                 "work_seconds": level_details.get("work_seconds"),
                 "rest_seconds": level_details.get("rest_seconds"),
