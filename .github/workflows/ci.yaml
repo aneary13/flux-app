@@ -70,5 +70,8 @@ jobs:
         with:
           version: 2.75.0
 
+      - name: Start Supabase Local Stack
+        run: supabase start
+
       - name: Verify SQL Format
         run: supabase db lint
