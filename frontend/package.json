@@ -10,7 +10,7 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "prepare": "husky",
-    "typegen": "openapi-typescript http://127.0.0.1:8000/openapi.json -o types/api.d.ts"
+    "typegen": "openapi-typescript http://127.0.0.1:8000/openapi.json -o types/api.d.ts && npx prettier --write types/api.d.ts"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
