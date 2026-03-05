@@ -36,7 +36,7 @@ export default function PlanScreen() {
     },
     ORANGE: {
       text: 'Modified Training',
-      color: theme.colors.stateOrange || '#E9C46A', // Fallback if theme not updated
+      color: theme.colors.stateOrange,
     },
     RED: {
       text: 'Rehab and Recovery',
@@ -79,7 +79,7 @@ export default function PlanScreen() {
       {/* Workout Blocks List */}
       <View style={styles.blocksContainer}>
         {sessionData.blocks.map((block, index) => (
-          <Card key={block.id || `block-${index}`} style={styles.blockCard}>
+          <Card key={block.label || `block-${index}`} style={styles.blockCard}>
             <View style={styles.blockHeader}>
               <View style={styles.numberCircle}>
                 <Typography variant="caption" style={styles.numberText}>
@@ -89,14 +89,14 @@ export default function PlanScreen() {
 
               <View style={styles.blockTitle}>
                 <Typography variant="h3">{block.type}</Typography>
-                {/* Fixed: Only renders if block.name exists, no "Overview" fallback */}
+                {/* Only renders if block.name exists, no "Overview" fallback */}
                 {block.label ? <Typography variant="caption">{block.label}</Typography> : null}
               </View>
             </View>
 
             <View style={styles.pillsContainer}>
               {block.exercises.map((ex, exIndex) => (
-                <Pill key={ex.id || `ex-${index}-${exIndex}`} label={ex.name} />
+                <Pill key={ex.name || `ex-${index}-${exIndex}`} label={ex.name} />
               ))}
             </View>
           </Card>

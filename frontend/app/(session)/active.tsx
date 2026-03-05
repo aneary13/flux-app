@@ -130,7 +130,7 @@ export default function ActiveSessionScreen() {
                 }}
               >
                 {standardExercises.map((ex, exIndex) => (
-                  <ExerciseCard key={ex.id || `ex-${exIndex}`} exercise={ex} />
+                  <ExerciseCard key={ex.name || `ex-${exIndex}`} exercise={ex} />
                 ))}
               </View>
             )}
@@ -163,7 +163,7 @@ export default function ActiveSessionScreen() {
       <FlatList
         ref={flatListRef}
         data={blocks}
-        keyExtractor={(item, index) => item.id || `block-${index}`}
+        keyExtractor={(item, index) => item.label || `block-${index}`}
         renderItem={renderBlockSlide}
         horizontal
         pagingEnabled

@@ -1,20 +1,5 @@
 import { create } from 'zustand';
-import { GeneratedSessionResponse, ConditioningProtocol } from '../types/api';
-
-export interface LoggedSet {
-  weight?: number;
-  reps?: number;
-  seconds?: number;
-  avg_watts?: number;
-  peak_watts?: number;
-  avg_hr?: number;
-  peak_hr?: number;
-  completed?: boolean;
-  is_warmup?: boolean;
-  rpe?: number;
-  is_benchmark?: boolean;
-  metadata?: Record<string, unknown>;
-}
+import { GeneratedSessionResponse, ConditioningProtocol, LoggedSet } from '../types/domain';
 
 interface SessionState {
   readiness: { knee_pain: number; energy: number } | null;

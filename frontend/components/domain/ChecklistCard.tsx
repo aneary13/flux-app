@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Types & State
-import { Exercise } from '../../types/api';
+import { GeneratedExercise } from '../../types/domain';
 import { useSessionStore } from '../../store/useSessionStore';
 
 // Core UI
@@ -11,17 +11,16 @@ import { Typography } from '../core/Typography';
 import { theme } from '../../theme';
 
 interface ChecklistCardProps {
-  exercises: Exercise[];
+  exercises: GeneratedExercise[];
   title?: string;
 }
 
 /**
  * Renders a single row for a checklist item.
  */
-function ChecklistItem({ exercise }: { exercise: Exercise }) {
+function ChecklistItem({ exercise }: { exercise: GeneratedExercise }) {
   const { logSet, loggedSets } = useSessionStore();
-
-  const exerciseId = exercise.id || exercise.name;
+  const exerciseId = exercise.name; // Backend uses name as identifier
   const currentLog = loggedSets[exerciseId]?.[0] || {};
   const isChecked = !!currentLog.completed;
 
@@ -55,10 +54,7 @@ export function ChecklistCard({ exercises, title }: ChecklistCardProps) {
   if (!exercises || exercises.length === 0) return null;
 
   // Calculate how many items are checked for the summary text
-  const completedCount = exercises.filter((ex) => {
-    const exId = ex.id || ex.name;
-    return !!loggedSets[exId]?.[0]?.completed;
-  }).length;
+  const completedCount = exercises.filter((ex) => !!loggedSets[ex.name]?.[0]?.completed).length;
 
   return (
     <View style={styles.cardContainer}>
@@ -68,24 +64,18 @@ export function ChecklistCard({ exercises, title }: ChecklistCardProps) {
         activeOpacity={0.7}
         onPress={() => {
           setIsExpanded(!isExpanded);
-          Keyboard.dismiss(); // Clean up the UI on layout changes
+          Keyboard.dismiss();
         }}
       >
         <View>
-          {title && (
-            <Typography variant="h3" style={styles.title}>
-              {title}
-            </Typography>
-          )}
-
           {/* Show summary text ONLY when collapsed */}
+          {title && <Typography variant="h3">{title}</Typography>}
           {!isExpanded && (
             <Typography variant="caption" color={theme.colors.textMuted}>
               {completedCount} / {exercises.length} completed
             </Typography>
           )}
         </View>
-
         <Ionicons
           name={isExpanded ? 'chevron-up' : 'chevron-down'}
           size={24}
@@ -97,7 +87,7 @@ export function ChecklistCard({ exercises, title }: ChecklistCardProps) {
       {isExpanded && (
         <View style={styles.listContainer}>
           {exercises.map((ex, index) => (
-            <ChecklistItem key={ex.id || `checklist-${index}`} exercise={ex} />
+            <ChecklistItem key={`checklist-${ex.name}-${index}`} exercise={ex} />
           ))}
         </View>
       )}
@@ -107,7 +97,7 @@ export function ChecklistCard({ exercises, title }: ChecklistCardProps) {
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: theme.colors.background, // F6F5F2
+    backgroundColor: theme.colors.background,
     borderRadius: theme.radii.md,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.lg,

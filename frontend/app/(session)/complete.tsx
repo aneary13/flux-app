@@ -9,7 +9,7 @@ import { Typography } from '../../components/core/Typography';
 import { Button } from '../../components/core/Button';
 import { Card } from '../../components/core/Card';
 import { theme } from '../../theme';
-import { ConditioningProtocol } from '../../types/api';
+import { ConditioningProtocol } from '../../types/domain';
 
 // Helper to convert milliseconds to clean "Xm" strings
 const formatTime = (ms: number | undefined) => {
@@ -73,24 +73,12 @@ export default function CompleteSessionScreen() {
 
       if (condBlock && condBlock.exercises.length > 0) {
         const condEx = condBlock.exercises[0];
-        const exId = condEx.id || condEx.name;
+        const exId = condEx.name;
 
         const didCompleteConditioning = loggedSets[exId]?.some((s) => s && s.completed);
 
         if (didCompleteConditioning && condEx.description) {
-          const match = condEx.description.match(/([A-Z]+)\s*\(Level\s*\d+\)/i);
-          if (match) {
-            const protocolCandidate = match[1].toUpperCase();
-
-            // Safety Check: Verify the string matches our allowed protocols
-            if (
-              protocolCandidate === 'HIIT' ||
-              protocolCandidate === 'SIT' ||
-              protocolCandidate === 'SS'
-            ) {
-              completedConditioning = protocolCandidate as ConditioningProtocol;
-            }
-          }
+          completedConditioning = condEx.protocol as ConditioningProtocol;
         }
       }
 
@@ -142,7 +130,7 @@ export default function CompleteSessionScreen() {
 
           return (
             <Card
-              key={block.id || `block-${index}`}
+              key={block.label || `block-${index}`}
               style={styles.blockCard}
               padding={theme.spacing.lg}
             >
@@ -180,7 +168,7 @@ export default function CompleteSessionScreen() {
                     // Tally up completed checklist items
                     let completedChecklists = 0;
                     checklistExercises.forEach((ex) => {
-                      const exId = ex.id || ex.name;
+                      const exId = ex.name;
                       if (loggedSets[exId]?.[0]?.completed) completedChecklists++;
                     });
 
@@ -204,7 +192,7 @@ export default function CompleteSessionScreen() {
 
                 {/* 2. Standard Exercises */}
                 {standardExercises.map((exercise, exIndex) => {
-                  const exerciseId = exercise.id || exercise.name;
+                  const exerciseId = exercise.name;
                   const setsLogged =
                     loggedSets[exerciseId]?.filter((s) => s && s.completed).length || 0;
 

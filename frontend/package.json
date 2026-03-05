@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "prepare": "husky"
+    "prepare": "husky",
+    "typegen": "openapi-typescript http://127.0.0.1:8000/openapi.json -o types/api.d.ts"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -43,6 +44,7 @@
     "eslint-config-expo": "^55.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3"
   },
