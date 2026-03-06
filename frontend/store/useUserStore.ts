@@ -1,16 +1,16 @@
 import { create } from 'zustand';
-import { UserState, GenerateSessionRequest, MovementPattern } from '../types/api';
+import { UserStateResponse, GenerateSessionRequest } from '../types/domain';
 
 interface UserStoreState {
   userId: string | null;
-  stateDocument: UserState | null;
+  stateDocument: UserStateResponse | null;
   isHydrated: boolean;
 }
 
 interface UserStoreActions {
   login: (uuid: string) => void;
   logout: () => void;
-  setUserState: (state: UserState) => void;
+  setUserState: (state: UserStateResponse) => void;
   setHydrated: (status: boolean) => void;
 
   // Maps the View Model into the exact payload the backend expects
@@ -33,13 +33,14 @@ export const useUserStore = create<UserStore>((set, get) => ({
     const { stateDocument } = get();
     if (!stateDocument) return null;
 
-    // Extract just the datetimes for the engine
+    // Extract just the datetimes for the engine.
+    // We map keys as strings here to satisfy the backend dictionary.
     const last_trained = Object.entries(stateDocument.patterns).reduce(
       (acc, [pattern, data]) => ({
         ...acc,
         [pattern]: data.last_trained_datetime,
       }),
-      {} as Record<MovementPattern, string | null>
+      {} as Record<string, string | null>
     );
 
     return {

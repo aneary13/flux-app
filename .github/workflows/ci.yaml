@@ -75,3 +75,49 @@ jobs:
 
       - name: Verify SQL Format
         run: supabase db lint
+
+  # --- 4. API CONTRACT CHECK ---
+  api-contract-ci:
+    name: API Contract Sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python 3.13
+        run: uv python install 3.13
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Backend dependencies
+        run: cd backend && uv sync
+
+      - name: Install Frontend dependencies
+        run: cd frontend && npm ci --ignore-scripts
+
+      - name: Start FastAPI Backend
+        env:
+          # Provide dummy vars to satisfy the Supabase client initialization during boot
+          SUPABASE_URL: "http://127.0.0.1:54321"
+          SUPABASE_KEY: "dummy-key-for-ci"
+        run: |
+          cd backend
+          uv run uvicorn main:app --port 8000 &
+          sleep 5 # Allow the server time to bind to the port
+
+      - name: Generate Frontend Types
+        run: cd frontend && npm run typegen
+
+      - name: Verify Contract Synchronization
+        run: |
+          # If this fails, the backend Pydantic models and frontend TS interfaces are out of sync.
+          # You must run 'npm run typegen' locally and commit the resulting api.d.ts file.
+          git diff --exit-code frontend/types/api.d.ts || (echo "❌ API contract mismatch detected!" && exit 1)

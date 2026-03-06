@@ -12,6 +12,7 @@ from supabase import Client, create_client
 
 from core.models import (
     CompleteSessionRequest,
+    GeneratedSessionResponse,
     GenerateSessionRequest,
     LogSetRequest,
     PatternState,
@@ -169,7 +170,7 @@ def get_user_state() -> UserStateResponse:
 
 
 @app.post("/sessions/generate")
-def generate_workout_session(request: GenerateSessionRequest) -> dict[str, Any]:
+def generate_workout_session(request: GenerateSessionRequest) -> GeneratedSessionResponse:
     """
     The core generation endpoint.
     """
@@ -195,7 +196,7 @@ def generate_workout_session(request: GenerateSessionRequest) -> dict[str, Any]:
             conditioning_levels=request.conditioning_levels,
         )
 
-        return session_plan
+        return GeneratedSessionResponse(**session_plan)
 
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve)) from ve

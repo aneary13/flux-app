@@ -75,3 +75,37 @@ class PatternState(BaseModel):
 class UserStateResponse(BaseModel):
     patterns: dict[str, PatternState]
     conditioning_levels: dict[str, int]
+
+
+class SessionMetadata(BaseModel):
+    state: str
+    archetype: str
+    anchor_pattern: str
+
+
+class GeneratedExercise(BaseModel):
+    name: str
+    is_unilateral: bool
+    load_type: str
+    tracking_unit: str
+
+    # Conditioning specific fields
+    is_conditioning: bool | None = None
+    description: str | None = None
+    protocol: str | None = None  # <-- The explicit protocol ID (HIIT, SIT, SS)
+    rounds: int | None = None
+    work_seconds: int | None = None
+    rest_seconds: int | None = None
+    is_benchmark: bool | None = None
+    target_intensity: int | str | None = None
+
+
+class GeneratedBlock(BaseModel):
+    type: str
+    label: str
+    exercises: list[GeneratedExercise]
+
+
+class GeneratedSessionResponse(BaseModel):
+    metadata: SessionMetadata
+    blocks: list[GeneratedBlock]

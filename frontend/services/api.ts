@@ -3,10 +3,11 @@ import {
   GeneratedSessionResponse,
   StartSessionRequest,
   CompleteSessionRequest,
-  UserState,
-  Exercise,
-} from '../types/api';
-import { LoggedSet } from '../store/useSessionStore';
+  UserStateResponse,
+  LoggedSet,
+  LogSetRequest,
+  GeneratedExercise,
+} from '../types/domain';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -25,11 +26,12 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 
   if (!response.ok) {
     const errorBody = await response.text();
+    // Providing clear error context for the Elite Product Engineer
     throw new Error(`API Error [${response.status}]: ${errorBody}`);
   }
 
-  // Handle empty responses for void endpoints
-  if (response.status === 204) {
+  // Handle empty responses or 200/201 responses that return confirmation strings
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
     return {} as T;
   }
 
@@ -38,17 +40,17 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 
 /**
  * The FluxAPI object serves as the single source of truth for backend communication.
- * It strictly adheres to the backend_api_spec.md contracts.
+ * It strictly adheres to the auto-generated api.d.ts contracts.
  */
 export const FluxAPI = {
   // --- A. System Initialization ---
 
   /** Retrieves the global exercise catalog and system configs */
   getBootstrap: () =>
-    fetchApi<{ exercises: Exercise[]; configs: Record<string, unknown> }>('/bootstrap'),
+    fetchApi<{ exercises: GeneratedExercise[]; configs: Record<string, unknown> }>('/bootstrap'),
 
-  /** Retrieves the current user biological State Document */
-  getUserState: () => fetchApi<UserState>('/user/state'),
+  /** Retrieves the current user biological State Document formatted as a View Model */
+  getUserState: () => fetchApi<UserStateResponse>('/user/state'),
 
   // --- B. The Generation Loop ---
 
@@ -68,20 +70,37 @@ export const FluxAPI = {
       body: JSON.stringify(payload),
     }),
 
-  /** Logs an individual set atomically */
-  logSet: (sessionId: string, exerciseName: string, setIndex: number, payload: LoggedSet) =>
-    fetchApi<void>(`/sessions/${sessionId}/sets`, {
+  /** * Logs an individual set atomically.
+   * Maps local LoggedSet to the backend LogSetRequest schema.
+   */
+  logSet: (sessionId: string, exerciseName: string, setIndex: number, payload: LoggedSet) => {
+    const requestBody: LogSetRequest = {
+      exercise_name: exerciseName,
+      set_index: setIndex,
+      weight: payload.weight,
+      reps: payload.reps,
+      seconds: payload.seconds,
+      is_warmup: payload.is_warmup ?? false,
+      is_benchmark: payload.is_benchmark ?? false,
+      metadata: {
+        ...payload.metadata,
+        rpe: payload.rpe,
+        avg_watts: payload.avg_watts,
+        peak_watts: payload.peak_watts,
+        avg_hr: payload.avg_hr,
+        peak_hr: payload.peak_hr,
+      },
+    };
+
+    return fetchApi<{ message: string }>(`/sessions/${sessionId}/sets`, {
       method: 'POST',
-      body: JSON.stringify({
-        exercise_name: exerciseName,
-        set_index: setIndex,
-        ...payload,
-      }),
-    }),
+      body: JSON.stringify(requestBody),
+    });
+  },
 
   /** Finalizes the session and updates the user's permanent state */
   completeSession: (sessionId: string, payload: CompleteSessionRequest) =>
-    fetchApi<void>(`/sessions/${sessionId}/complete`, {
+    fetchApi<{ message: string }>(`/sessions/${sessionId}/complete`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

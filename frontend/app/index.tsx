@@ -11,7 +11,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserStore } from '../store/useUserStore';
 import { FluxAPI } from '../services/api';
-import { PatternReadiness } from '../types/api';
+import { PatternState } from '../types/domain';
 import { theme } from '../theme';
 
 // --- HYBRID UI HELPERS ---
@@ -40,7 +40,7 @@ const getStatusIcon = (statusText: string) => {
   }
 };
 
-const generateDynamicGreeting = (patterns: Record<string, PatternReadiness>) => {
+const generateDynamicGreeting = (patterns: Record<string, PatternState>) => {
   const primedPatterns = Object.entries(patterns)
     .filter(([_, data]) => data.status_text === 'Fully Primed')
     .map(([pattern]) => pattern);

@@ -3,8 +3,8 @@ import { View, StyleSheet, TouchableOpacity, TextInput, Keyboard } from 'react-n
 import { Ionicons } from '@expo/vector-icons';
 
 // Types & State
-import { Exercise } from '../../types/api';
-import { useSessionStore, LoggedSet } from '../../store/useSessionStore';
+import { GeneratedExercise as Exercise, LoggedSet } from '../../types/domain';
+import { useSessionStore } from '../../store/useSessionStore';
 import { FluxAPI } from '../../services/api';
 
 // Core UI
@@ -24,8 +24,7 @@ interface SetRowProps {
 function SetRow({ exercise, setIndex, isConditioning }: SetRowProps) {
   // Grab sessionId to make the atomic API call
   const { logSet, loggedSets, sessionId } = useSessionStore();
-
-  const exerciseId = exercise.id || exercise.name;
+  const exerciseId = exercise.name;
   const currentLog = loggedSets[exerciseId]?.[setIndex] || {};
 
   const [isEditing, setIsEditing] = useState(!currentLog.completed);
@@ -62,30 +61,16 @@ function SetRow({ exercise, setIndex, isConditioning }: SetRowProps) {
       payload.is_benchmark = !!exercise.is_benchmark;
       payload.is_warmup = false;
 
-      // Parse "SIT (Level 1)" into protocol and level using Regex
-      let parsedProtocol = 'UNKNOWN';
-      let parsedLevel = 1;
-
-      if (exercise.description) {
-        // Matches letters before a space, then "(Level X)"
-        const match = exercise.description.match(/([A-Z]+)\s*\(Level\s*(\d+)\)/i);
-        if (match) {
-          parsedProtocol = match[1].toUpperCase(); // e.g., "SIT"
-          parsedLevel = parseInt(match[2], 10); // e.g., 1
-        }
-      }
-
-      // Build the exact nested metadata object your backend expects
+      // Direct metadata assignment and first-class field mapping
       payload.metadata = {
-        protocol: parsedProtocol,
-        level: parsedLevel,
         work_seconds: exercise.work_seconds,
         rest_seconds: exercise.rest_seconds,
-        avg_watts: avgWatts ? parseFloat(avgWatts) : undefined,
-        peak_watts: peakWatts ? parseFloat(peakWatts) : undefined,
-        avg_hr: avgHr ? parseFloat(avgHr) : undefined,
-        peak_hr: peakHr ? parseFloat(peakHr) : undefined,
       };
+
+      payload.avg_watts = avgWatts ? parseFloat(avgWatts) : undefined;
+      payload.peak_watts = peakWatts ? parseFloat(peakWatts) : undefined;
+      payload.avg_hr = avgHr ? parseFloat(avgHr) : undefined;
+      payload.peak_hr = peakHr ? parseFloat(peakHr) : undefined;
     } else {
       // Standard Lifting Payload
       payload.is_warmup = isWarmup;
@@ -347,7 +332,7 @@ interface ExerciseCardProps {
 
 export function ExerciseCard({ exercise }: ExerciseCardProps) {
   const { loggedSets, exerciseNotes, setExerciseNote } = useSessionStore();
-  const exerciseId = exercise.id || exercise.name;
+  const exerciseId = exercise.name;
 
   const isConditioning = !!exercise.is_conditioning;
 
@@ -423,7 +408,7 @@ export function ExerciseCard({ exercise }: ExerciseCardProps) {
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: theme.colors.background, // F6F5F2
+    backgroundColor: theme.colors.background,
     borderRadius: theme.radii.md,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.lg,
@@ -456,7 +441,7 @@ const styles = StyleSheet.create({
 
   // --- Active State Styles ---
   activeRowContainer: {
-    backgroundColor: theme.colors.surface, // Pure white to pop out from the grey card
+    backgroundColor: theme.colors.surface,
     padding: theme.spacing.md,
     borderRadius: theme.radii.sm,
     borderWidth: 1,
