@@ -1,16 +1,21 @@
+import asyncio
+import json
 import logging
 import os
+import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from groq import AsyncGroq
 from supabase import Client, create_client
 
 from core.models import (
+    AIResponse,
     CompleteSessionRequest,
     GeneratedSessionResponse,
     GenerateSessionRequest,
@@ -36,6 +41,12 @@ supabase_key = os.environ.get("SUPABASE_KEY", "")
 supabase: Client = create_client(supabase_url, supabase_key)
 
 DUMMY_USER_ID = "00000000-0000-0000-0000-000000000000"
+
+# Groq client for the AI Coach endpoint
+groq_client = AsyncGroq(api_key=os.environ.get("GROQ_API_KEY", ""))
+_COACH_FALLBACK = AIResponse(
+    message="Great to see you! Whenever you're ready, let's get after today's session."
+)
 
 
 # Set up the Lifespan Hook for robust initialization
@@ -143,7 +154,10 @@ def get_user_state() -> UserStateResponse:
         for pattern, timestamp_str in last_trained_data.items():
             if not timestamp_str:
                 patterns_view[pattern] = PatternState(
-                    last_trained_datetime=None, days_since=None, status_text="Fully Primed"
+                    last_trained_datetime=None,
+                    days_since=None,
+                    status_text="Fully Primed",
+                    days_since_text="Untrained",
                 )
             else:
                 last_dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
@@ -157,13 +171,45 @@ def get_user_state() -> UserStateResponse:
                 else:
                     status = "Fully Primed"
 
+                if days_elapsed == 0:
+                    days_text = "Today"
+                elif days_elapsed == 1:
+                    days_text = "1 day ago"
+                else:
+                    days_text = f"{days_elapsed} days ago"
+
                 patterns_view[pattern] = PatternState(
-                    last_trained_datetime=timestamp_str, days_since=days_elapsed, status_text=status
+                    last_trained_datetime=timestamp_str,
+                    days_since=days_elapsed,
+                    status_text=status,
+                    days_since_text=days_text,
                 )
+
+        # Pre-compute readiness headline and summary text
+        primed_patterns = [p for p, s in patterns_view.items() if s.status_text == "Fully Primed"]
+
+        if not primed_patterns:
+            readiness_headline = "Engine Cooling"
+            readiness_summary = "Your patterns are recovering. Focus on conditioning."
+        else:
+            # Format list: "PULL", "PULL and PUSH", "PULL, PUSH, and HINGE"
+            if len(primed_patterns) == 1:
+                formatted = primed_patterns[0]
+                suffix = "pattern is"
+            elif len(primed_patterns) == 2:
+                formatted = f"{primed_patterns[0]} and {primed_patterns[1]}"
+                suffix = "patterns are"
+            else:
+                formatted = ", ".join(primed_patterns[:-1]) + f", and {primed_patterns[-1]}"
+                suffix = "patterns are"
+            readiness_headline = "Ready to Train"
+            readiness_summary = f"Your {formatted} {suffix} fully primed."
 
         return UserStateResponse(
             patterns=patterns_view,
             conditioning_levels=cond_levels,
+            readiness_headline=readiness_headline,
+            readiness_summary_text=readiness_summary,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -285,12 +331,13 @@ def complete_session(session_id: str, request: CompleteSessionRequest) -> dict[s
     Finalizes the session and securely updates the UTC timestamp for the anchor pattern.
     """
     try:
-        # 1. Update the Session Record with notes and timestamp
+        # 1. Update the Session Record with notes, timestamp, and anchor pattern
         update_data = {
             "status": "COMPLETED",
             "exercise_notes": request.exercise_notes,
             "summary_notes": request.summary_notes,
             "completed_at": datetime.now(UTC).isoformat(),
+            "anchor_pattern": request.anchor_pattern,
         }
         supabase.table("workout_sessions").update(cast(Any, update_data)).eq(
             "id", session_id
@@ -350,3 +397,209 @@ def complete_session(session_id: str, request: CompleteSessionRequest) -> dict[s
         return {"status": "Session completed and progression state updated successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# --- AI Coach Helpers ---
+
+
+def _fetch_coach_context() -> tuple[
+    dict[str, Any], int, int, dict[str, int], dict[str, Any] | None
+]:
+    """
+    Synchronous helper to fetch context for the AI coach prompt.
+    Returns: (last_trained, count_7d, count_30d, conditioning_levels, last_session_dict)
+    """
+    # 1. Fetch State Document (Contains Pattern Debts & Conditioning Levels)
+    state_response = (
+        supabase.table("user_configs")
+        .select("data")
+        .eq("user_id", DUMMY_USER_ID)
+        .eq("slug", "state")
+        .execute()
+    )
+    state_list = cast(list[dict[str, Any]], state_response.data)
+
+    last_trained: dict[str, Any] = {}
+    conditioning_levels: dict[str, int] = {}
+
+    if state_list and state_list[0].get("data"):
+        state_data = cast(dict[str, Any], state_list[0]["data"])
+        last_trained = state_data.get("last_trained", {})
+        conditioning_levels = state_data.get("conditioning_levels", {})
+
+    now = datetime.now(UTC)
+    seven_days_ago = (now - timedelta(days=7)).isoformat()
+    thirty_days_ago = (now - timedelta(days=30)).isoformat()
+
+    # 2. Fetch last 7 days of sessions (Order by newest first to grab the last session)
+    sessions_7d_resp = (
+        supabase.table("workout_sessions")
+        .select("id, archetype, anchor_pattern")
+        .eq("user_id", DUMMY_USER_ID)
+        .eq("status", "COMPLETED")
+        .gte("completed_at", seven_days_ago)
+        .order("completed_at", desc=True)
+        .execute()
+    )
+
+    # 3. Fetch 30 day count
+    sessions_30d_resp = (
+        supabase.table("workout_sessions")
+        .select("id")
+        .eq("user_id", DUMMY_USER_ID)
+        .eq("status", "COMPLETED")
+        .gte("completed_at", thirty_days_ago)
+        .execute()
+    )
+
+    sessions_7d = cast(list[dict[str, Any]], sessions_7d_resp.data)
+    count_7d = len(sessions_7d)
+    count_30d = len(cast(list[dict[str, Any]], sessions_30d_resp.data))
+
+    # Grab the single most recent session for extra context
+    last_session = sessions_7d[0] if sessions_7d else None
+
+    return last_trained, count_7d, count_30d, conditioning_levels, last_session
+
+
+def _build_coach_prompt(
+    last_trained: dict[str, Any],
+    count_7d: int,
+    count_30d: int,
+    cond_levels: dict[str, int],
+    last_session: dict[str, Any] | None,
+    local_hour: int,
+    local_day: str,
+) -> str:
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC)
+
+    # --- PYTHON PRE-COMPUTATION ---
+    longest_overdue_pattern = "Any"
+    max_days = -1
+
+    for pattern in ["SQUAT", "HINGE", "PUSH", "PULL"]:
+        ts = last_trained.get(pattern)
+        if not ts:
+            max_days = 999
+            longest_overdue_pattern = pattern
+            break
+        else:
+            last_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            days = (now - last_dt).days
+            if days > max_days:
+                max_days = days
+                longest_overdue_pattern = pattern
+
+    days_str = f"{max_days} days" if max_days != 999 else "a while"
+
+    if local_hour < 12:
+        time_of_day = "Morning"
+    elif local_hour < 17:
+        time_of_day = "Afternoon"
+    else:
+        time_of_day = "Evening"
+
+    # --- OPTIONAL CONTEXT FORMATTING ---
+    last_session_context = ""
+    if last_session:
+        anchor = last_session.get("anchor_pattern") or last_session.get("archetype", "")
+        if anchor:
+            last_session_context = f"- Last workout focused on: {anchor}\n"
+
+    cond_context = ""
+    if cond_levels:
+        # e.g., "HIIT Level 2, SIT Level 1"
+        cond_str = ", ".join([f"{k} Level {v}" for k, v in cond_levels.items()])
+        cond_context = f"- Conditioning progress: {cond_str}\n"
+
+    # --- RANDOMIZED INSTRUCTION VECTOR ---
+    last_focus = (last_session or {}).get("anchor_pattern") or (last_session or {}).get(
+        "archetype", "recent"
+    )
+    instruction_angles = [
+        (
+            f"Focus heavily on the fact that today is {local_day}. "
+            f"Make it feel like a fresh opportunity."
+        ),
+        (
+            f"Acknowledge their rolling 30-day consistency ({count_30d} sessions), "
+            f"then pivot to today's {longest_overdue_pattern} focus."
+        ),
+        (
+            f"Keep it very brief and philosophical about showing up, "
+            f"then mention the {longest_overdue_pattern}."
+        ),
+        (
+            f"If they had a recent session, reference how that {last_focus} session "
+            f"sets them up perfectly for today's {longest_overdue_pattern}."
+        ),
+    ]
+    chosen_angle = secrets.choice(instruction_angles)
+
+    # --- THE PROMPT ---
+    tone_rule_3 = (
+        "3. CRITICAL: NEVER use the phrase 'this week' or 'this month' when referring "
+        "to the last 7 days or the last 30 days, respectively. Always refer to "
+        "'the last few days' or 'recent momentum' to avoid calendar confusion. "
+        "You can use the phrases 'this week' and 'this month' in reference to "
+        "the calendar periods."
+    )
+    return (
+        f"You are a grounded, attentive, and supportive human fitness coach for the FLUX app. "
+        f"Write a 1 to 2 sentence greeting (maximum 30 words). "
+        f"Use a mix of the following user data to personalize the message naturally:\n"
+        f"- Time: {time_of_day} on a {local_day}\n"
+        f"- Short-term consistency: {count_7d} sessions in the last 7 days\n"
+        f"- Long-term consistency: {count_30d} sessions in the last 30 days\n"
+        f"- Focus for today: {longest_overdue_pattern} ({days_str} since last trained)\n"
+        f"{last_session_context}"
+        f"{cond_context}"
+        f"TONE RULES:\n"
+        f"1. Conversational, warm, and encouraging.\n"
+        f"2. Absolutely NO cliches ('crush it', 'legend', 'beast mode').\n"
+        f"{tone_rule_3}\n"
+        f"YOUR SPECIFIC DIRECTIVE FOR THIS MESSAGE: {chosen_angle}\n"
+        f'Respond ONLY with valid JSON: {{"message": "your message here"}}'
+    )
+
+
+async def _call_groq(prompt: str) -> AIResponse:
+    resp = await groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"},
+        max_tokens=60,
+    )
+    content = resp.choices[0].message.content or ""
+    data = json.loads(content)
+    return AIResponse(**data)
+
+
+@app.get("/user/coach-message")
+async def get_coach_message(local_hour: int, local_day: str = "Today") -> AIResponse:
+    """
+    Fetches a dynamic AI-generated hype message based on the user's training context.
+    Falls back gracefully on timeout or validation failure.
+    """
+    try:
+        # Unpack the newly expanded context
+        last_trained, count_7d, count_30d, cond_levels, last_session = await asyncio.to_thread(
+            _fetch_coach_context
+        )
+
+        prompt = _build_coach_prompt(
+            last_trained, count_7d, count_30d, cond_levels, last_session, local_hour, local_day
+        )
+
+        result = await asyncio.wait_for(_call_groq(prompt), timeout=2.0)
+
+        # Validate length (give a little buffer for 2 sentences, ~30 words max)
+        if len(result.message.split()) > 30:
+            return _COACH_FALLBACK
+
+        return result
+    except Exception as e:
+        logger.error(f"Coach LLM failed: {e}")
+        return _COACH_FALLBACK

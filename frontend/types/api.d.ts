@@ -144,10 +144,36 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/user/coach-message': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Coach Message
+     * @description Fetches a dynamic AI-generated hype message based on the user's training context.
+     *     Falls back gracefully on timeout or validation failure.
+     */
+    get: operations['get_coach_message_user_coach_message_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** AIResponse */
+    AIResponse: {
+      /** Message */
+      message: string;
+    };
     /** CompleteSessionRequest */
     CompleteSessionRequest: {
       /** Exercise Notes */
@@ -211,8 +237,11 @@ export interface components {
       work_seconds?: number | null;
       /** Rest Seconds */
       rest_seconds?: number | null;
-      /** Is Benchmark */
-      is_benchmark?: boolean | null;
+      /**
+       * Is Benchmark
+       * @default false
+       */
+      is_benchmark: boolean;
       /** Target Intensity */
       target_intensity?: number | string | null;
     };
@@ -262,15 +291,22 @@ export interface components {
       days_since: number | null;
       /** Status Text */
       status_text: string;
+      /** Days Since Text */
+      days_since_text: string;
     };
     /** SessionMetadata */
     SessionMetadata: {
-      /** State */
-      state: string;
+      /**
+       * State
+       * @enum {string}
+       */
+      state: 'GREEN' | 'ORANGE' | 'RED';
       /** Archetype */
       archetype: string;
       /** Anchor Pattern */
       anchor_pattern: string;
+      /** State Display Text */
+      state_display_text: string;
     };
     /** StartSessionRequest */
     StartSessionRequest: {
@@ -289,6 +325,10 @@ export interface components {
       conditioning_levels: {
         [key: string]: number;
       };
+      /** Readiness Headline */
+      readiness_headline: string;
+      /** Readiness Summary Text */
+      readiness_summary_text: string;
     };
     /** ValidationError */
     ValidationError: {
@@ -505,6 +545,38 @@ export interface operations {
           'application/json': {
             [key: string]: string;
           };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_coach_message_user_coach_message_get: {
+    parameters: {
+      query: {
+        local_hour: number;
+        local_day?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AIResponse'];
         };
       };
       /** @description Validation Error */

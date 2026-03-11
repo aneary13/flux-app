@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Text,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +15,7 @@ import { FluxAPI } from '../services/api';
 import { PatternState } from '../types/domain';
 import { theme } from '../theme';
 
-// --- HYBRID UI HELPERS ---
+// --- UI HELPERS ---
 
 const getPatternColor = (statusText: string) => {
   switch (statusText) {
@@ -40,36 +41,23 @@ const getStatusIcon = (statusText: string) => {
   }
 };
 
-const generateDynamicGreeting = (patterns: Record<string, PatternState>) => {
-  const primedPatterns = Object.entries(patterns)
-    .filter(([_, data]) => data.status_text === 'Fully Primed')
-    .map(([pattern]) => pattern);
+// --- SHIMMER COMPONENT ---
+function ShimmerBox({ width = '100%', height = 52 }: { width?: number | string; height?: number }) {
+  const opacity = useRef(new Animated.Value(0.3)).current;
 
-  if (primedPatterns.length === 0) {
-    return {
-      headline: 'Engine Cooling',
-      subHeadlineStart: 'Your movement patterns are ',
-      highlightedPatterns: 'recovering',
-      subHeadlineEnd: '. Focus on conditioning.',
-    };
-  }
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.8, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [opacity]);
 
-  // Formatting "PULL, PUSH, and HINGE" beautifully for the new UI
-  let highlightedPatterns = primedPatterns.join(', ');
-  if (primedPatterns.length > 1) {
-    const last = primedPatterns.pop();
-    highlightedPatterns = `${primedPatterns.join(', ')}, and ${last}`;
-  } else if (primedPatterns.length === 1) {
-    highlightedPatterns = primedPatterns[0];
-  }
-
-  return {
-    headline: 'Ready to Train',
-    subHeadlineStart: 'Your ',
-    highlightedPatterns: highlightedPatterns,
-    subHeadlineEnd: ` pattern${primedPatterns.length >= 1 ? 's are' : ' is'} fully primed.`,
-  };
-};
+  return <Animated.View style={[styles.shimmerBox, { width: width as number, height, opacity }]} />;
+}
 
 const PROTOCOL_NAMES: Record<string, string> = {
   HIIT: 'High Intensity Interval Training',
@@ -81,9 +69,14 @@ export default function HomeDashboard() {
   const { stateDocument, setUserState } = useUserStore();
   const [isInitialLoad, setIsInitialLoad] = useState(!stateDocument);
 
+  // AI Coach state — fetched fresh on every focus, never cached
+  const [coachMessage, setCoachMessage] = useState<string | null>(null);
+  const [isCoachLoading, setIsCoachLoading] = useState(true);
+
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
+
       async function loadUserState() {
         try {
           const data = await FluxAPI.getUserState();
@@ -96,25 +89,34 @@ export default function HomeDashboard() {
           if (isActive) setIsInitialLoad(false);
         }
       }
+
+      async function loadCoachMessage() {
+        setIsCoachLoading(true);
+        setCoachMessage(null);
+        try {
+          const localHour = new Date().getHours();
+          const localDay = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
+          const res = await FluxAPI.getCoachMessage(localHour, localDay);
+          if (isActive) {
+            setCoachMessage(res.message);
+          }
+        } catch {
+          // Silently fall through — coach section will simply not render
+        } finally {
+          if (isActive) setIsCoachLoading(false);
+        }
+      }
+
       loadUserState();
+      loadCoachMessage();
+
       return () => {
         isActive = false;
       };
     }, [setUserState])
   );
 
-  const greeting = useMemo(() => {
-    if (!stateDocument) return null;
-    return generateDynamicGreeting(stateDocument.patterns);
-  }, [stateDocument]);
-
-  const primedCount = useMemo(() => {
-    if (!stateDocument) return 0;
-    return Object.values(stateDocument.patterns).filter((p) => p.status_text === 'Fully Primed')
-      .length;
-  }, [stateDocument]);
-
-  if (isInitialLoad || !stateDocument || !greeting) {
+  if (isInitialLoad || !stateDocument) {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={theme.colors.actionPrimary} />
@@ -124,18 +126,29 @@ export default function HomeDashboard() {
   }
 
   const totalPatterns = Object.keys(stateDocument.patterns).length;
+  const primedCount = Object.values(stateDocument.patterns).filter(
+    (p) => p.status_text === 'Fully Primed'
+  ).length;
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* --- Header Section --- */}
         <View style={styles.header}>
-          <Text style={styles.headline}>{greeting.headline}</Text>
-          <Text style={styles.subHeadline}>
-            {greeting.subHeadlineStart}
-            <Text style={styles.subHeadlineHighlight}>{greeting.highlightedPatterns}</Text>
-            {greeting.subHeadlineEnd}
-          </Text>
+          <Text style={styles.headline}>{stateDocument.readiness_headline}</Text>
+          <Text style={styles.subHeadline}>{stateDocument.readiness_summary_text}</Text>
+        </View>
+
+        {/* --- AI Coach Section --- */}
+        <View style={styles.coachSection}>
+          {isCoachLoading ? (
+            <ShimmerBox height={64} />
+          ) : coachMessage ? (
+            <View style={styles.coachCard}>
+              <View style={styles.coachAccent} />
+              <Text style={styles.coachText}>{coachMessage}</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* --- Movement Readiness Section --- */}
@@ -150,29 +163,30 @@ export default function HomeDashboard() {
           </View>
 
           <View style={styles.cardList}>
-            {Object.entries(stateDocument.patterns).map(([pattern, data]) => {
-              const { status_text, days_since } = data;
-              const color = getPatternColor(status_text);
-              const iconName = getStatusIcon(status_text);
-              const daysDisplay = days_since === null ? 'Untrained' : `${days_since} days ago`;
+            {Object.entries(stateDocument.patterns).map(
+              ([pattern, data]: [string, PatternState]) => {
+                const { status_text, days_since_text } = data;
+                const color = getPatternColor(status_text);
+                const iconName = getStatusIcon(status_text);
 
-              return (
-                <View key={pattern} style={styles.readinessCard}>
-                  <View style={styles.cardLeft}>
-                    <View style={[styles.pillIndicator, { backgroundColor: color }]} />
-                    <View>
-                      <Text style={styles.patternName}>{pattern}</Text>
-                      <Text style={[styles.statusText, { color }]}>{status_text}</Text>
+                return (
+                  <View key={pattern} style={styles.readinessCard}>
+                    <View style={styles.cardLeft}>
+                      <View style={[styles.pillIndicator, { backgroundColor: color }]} />
+                      <View>
+                        <Text style={styles.patternName}>{pattern}</Text>
+                        <Text style={[styles.statusText, { color }]}>{status_text}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardRight}>
+                      <Ionicons name={iconName} size={20} color={color} />
+                      <Text style={styles.daysText}>{days_since_text}</Text>
                     </View>
                   </View>
-
-                  <View style={styles.cardRight}>
-                    <Ionicons name={iconName} size={20} color={color} />
-                    <Text style={styles.daysText}>{daysDisplay}</Text>
-                  </View>
-                </View>
-              );
-            })}
+                );
+              }
+            )}
           </View>
         </View>
 
@@ -184,7 +198,7 @@ export default function HomeDashboard() {
 
           <View style={styles.cardList}>
             {Object.entries(stateDocument.conditioning_levels)
-              .filter(([protocol]) => protocol !== 'SS') // Hide Steady State
+              .filter(([protocol]) => protocol !== 'SS')
               .map(([protocol, level]) => {
                 const fullName = PROTOCOL_NAMES[protocol] || protocol;
 
@@ -245,7 +259,7 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    marginBottom: theme.spacing.xxl,
+    marginBottom: theme.spacing.xl,
   },
   headline: {
     fontSize: 28,
@@ -259,9 +273,37 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     lineHeight: 24,
   },
-  subHeadlineHighlight: {
-    color: theme.colors.textPrimary,
+
+  // AI Coach
+  coachSection: {
+    marginBottom: theme.spacing.xxl,
+  },
+  shimmerBox: {
+    backgroundColor: '#D1D1D6',
+    borderRadius: theme.radii.lg,
+  },
+  coachCard: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: theme.radii.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    paddingVertical: theme.spacing.lg,
+    paddingRight: theme.spacing.lg,
+  },
+  coachAccent: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: theme.colors.stateGreen,
+    marginRight: theme.spacing.md,
+  },
+  coachText: {
+    flex: 1,
+    fontSize: 15,
     fontWeight: '600',
+    color: '#FFFFFF',
+    lineHeight: 22,
+    letterSpacing: -0.2,
   },
 
   // Sections
@@ -282,7 +324,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   badge: {
-    backgroundColor: '#E5E5EA', // Slightly darker than background for contrast
+    backgroundColor: '#E5E5EA',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: theme.radii.sm,
@@ -368,8 +410,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: theme.spacing.xl,
-    paddingBottom: 40, // Extra padding for safe area / home indicator
-    backgroundColor: 'rgba(246, 245, 242, 0.95)', // theme.colors.background with opacity
+    paddingBottom: 40,
+    backgroundColor: 'rgba(246, 245, 242, 0.95)',
   },
   primaryButton: {
     backgroundColor: theme.colors.actionPrimary,

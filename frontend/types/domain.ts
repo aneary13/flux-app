@@ -11,6 +11,7 @@ export type StartSessionRequest = components['schemas']['StartSessionRequest'];
 export type GenerateSessionRequest = components['schemas']['GenerateSessionRequest'];
 export type LogSetRequest = components['schemas']['LogSetRequest'];
 export type CompleteSessionRequest = components['schemas']['CompleteSessionRequest'];
+export type AIResponse = components['schemas']['AIResponse'];
 
 // --- 2. Frontend Strict Literals ---
 // We redefine these strictly here because OpenAPI string types often compile down

@@ -211,9 +211,7 @@ class WorkoutResolver:
 
         # 2. Benchmark Math & Target Intensity
         target_intensity = None
-        is_benchmark = level_details.get(
-            "is_benchmark", False
-        )  # Initialize to None to avoid undefined errors
+        is_benchmark: bool = bool(level_details.get("is_benchmark", False))
 
         if protocol == "HIIT" and not is_benchmark:
             # Retrieve the benchmark watts from the user's state
@@ -300,11 +298,20 @@ class WorkoutResolver:
                     }
                 )
 
+        state_display_map = {
+            "GREEN": "Full Intensity Training",
+            "ORANGE": "Modified Training",
+            "RED": "Rehab and Recovery",
+        }
+
         return {
             "metadata": {
                 "state": self.current_state,
                 "archetype": self.archetype,
                 "anchor_pattern": self.main_pattern,
+                "state_display_text": state_display_map.get(
+                    self.current_state, "Full Intensity Training"
+                ),
             },
             "blocks": resolved_blocks,
         }
