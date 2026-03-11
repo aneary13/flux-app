@@ -45,7 +45,7 @@ DUMMY_USER_ID = "00000000-0000-0000-0000-000000000000"
 # Groq client for the AI Coach endpoint
 groq_client = AsyncGroq(api_key=os.environ.get("GROQ_API_KEY", ""))
 _COACH_FALLBACK = AIResponse(
-    message="Great to see you! Whenever you're ready, let's get after today's session."
+    greeting="Great to see you!", message="Whenever you're ready, let's get after today's session."
 )
 
 
@@ -185,31 +185,9 @@ def get_user_state() -> UserStateResponse:
                     days_since_text=days_text,
                 )
 
-        # Pre-compute readiness headline and summary text
-        primed_patterns = [p for p, s in patterns_view.items() if s.status_text == "Fully Primed"]
-
-        if not primed_patterns:
-            readiness_headline = "Engine Cooling"
-            readiness_summary = "Your patterns are recovering. Focus on conditioning."
-        else:
-            # Format list: "PULL", "PULL and PUSH", "PULL, PUSH, and HINGE"
-            if len(primed_patterns) == 1:
-                formatted = primed_patterns[0]
-                suffix = "pattern is"
-            elif len(primed_patterns) == 2:
-                formatted = f"{primed_patterns[0]} and {primed_patterns[1]}"
-                suffix = "patterns are"
-            else:
-                formatted = ", ".join(primed_patterns[:-1]) + f", and {primed_patterns[-1]}"
-                suffix = "patterns are"
-            readiness_headline = "Ready to Train"
-            readiness_summary = f"Your {formatted} {suffix} fully primed."
-
         return UserStateResponse(
             patterns=patterns_view,
             conditioning_levels=cond_levels,
-            readiness_headline=readiness_headline,
-            readiness_summary_text=readiness_summary,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -471,7 +449,6 @@ def _build_coach_prompt(
     local_hour: int,
     local_day: str,
 ) -> str:
-    from datetime import UTC, datetime
 
     now = datetime.now(UTC)
 
@@ -496,7 +473,7 @@ def _build_coach_prompt(
 
     if local_hour < 12:
         time_of_day = "Morning"
-    elif local_hour < 17:
+    elif local_hour < 18:
         time_of_day = "Afternoon"
     else:
         time_of_day = "Evening"
@@ -510,7 +487,6 @@ def _build_coach_prompt(
 
     cond_context = ""
     if cond_levels:
-        # e.g., "HIIT Level 2, SIT Level 1"
         cond_str = ", ".join([f"{k} Level {v}" for k, v in cond_levels.items()])
         cond_context = f"- Conditioning progress: {cond_str}\n"
 
@@ -546,9 +522,11 @@ def _build_coach_prompt(
         "You can use the phrases 'this week' and 'this month' in reference to "
         "the calendar periods."
     )
+
     return (
         f"You are a grounded, attentive, and supportive human fitness coach for the FLUX app. "
-        f"Write a 1 to 2 sentence greeting (maximum 30 words). "
+        f"Generate a two-part response: a short, punchy greeting, "
+        f"and a 1-to-2 sentence message (max 30 words). "
         f"Use a mix of the following user data to personalize the message naturally:\n"
         f"- Time: {time_of_day} on a {local_day}\n"
         f"- Short-term consistency: {count_7d} sessions in the last 7 days\n"
@@ -561,7 +539,15 @@ def _build_coach_prompt(
         f"2. Absolutely NO cliches ('crush it', 'legend', 'beast mode').\n"
         f"{tone_rule_3}\n"
         f"YOUR SPECIFIC DIRECTIVE FOR THIS MESSAGE: {chosen_angle}\n"
-        f'Respond ONLY with valid JSON: {{"message": "your message here"}}'
+        f"EXAMPLES OF EXACT JSON FORMAT WE WANT:\n"
+        f'{{"greeting": "Happy {local_day}!", '
+        f'"message": "Your consistency over the last month is really showing. '
+        f"Let's channel that into your {longest_overdue_pattern} mechanics today.\"}}\n"
+        f'{{"greeting": "Good {time_of_day.lower()}.", '
+        f'"message": "Showing up is the hardest part, and you\'re here. '
+        f"Let's get the body moving and focus on the {longest_overdue_pattern}.\"}}\n"
+        f"Respond ONLY with valid JSON matching the exact schema: "
+        f'{{"greeting": "...", "message": "..."}}'
     )
 
 

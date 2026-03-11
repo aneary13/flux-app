@@ -70,7 +70,7 @@ export default function HomeDashboard() {
   const [isInitialLoad, setIsInitialLoad] = useState(!stateDocument);
 
   // AI Coach state — fetched fresh on every focus, never cached
-  const [coachMessage, setCoachMessage] = useState<string | null>(null);
+  const [coachData, setCoachData] = useState<{ greeting: string; message: string } | null>(null);
   const [isCoachLoading, setIsCoachLoading] = useState(true);
 
   useFocusEffect(
@@ -92,13 +92,13 @@ export default function HomeDashboard() {
 
       async function loadCoachMessage() {
         setIsCoachLoading(true);
-        setCoachMessage(null);
+        setCoachData(null);
         try {
           const localHour = new Date().getHours();
           const localDay = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
           const res = await FluxAPI.getCoachMessage(localHour, localDay);
           if (isActive) {
-            setCoachMessage(res.message);
+            setCoachData({ greeting: res.greeting, message: res.message });
           }
         } catch {
           // Silently fall through — coach section will simply not render
@@ -133,20 +133,14 @@ export default function HomeDashboard() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* --- Header Section --- */}
-        <View style={styles.header}>
-          <Text style={styles.headline}>{stateDocument.readiness_headline}</Text>
-          <Text style={styles.subHeadline}>{stateDocument.readiness_summary_text}</Text>
-        </View>
-
-        {/* --- AI Coach Section --- */}
+        {/* --- AI Coach Hero Card --- */}
         <View style={styles.coachSection}>
           {isCoachLoading ? (
-            <ShimmerBox height={64} />
-          ) : coachMessage ? (
-            <View style={styles.coachCard}>
-              <View style={styles.coachAccent} />
-              <Text style={styles.coachText}>{coachMessage}</Text>
+            <ShimmerBox height={120} />
+          ) : coachData ? (
+            <View style={styles.heroCard}>
+              <Text style={styles.heroGreeting}>{coachData.greeting}</Text>
+              <Text style={styles.heroMessage}>{coachData.message}</Text>
             </View>
           ) : null}
         </View>
@@ -257,53 +251,32 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  // Header
-  header: {
-    marginBottom: theme.spacing.xl,
-  },
-  headline: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.5,
-    marginBottom: theme.spacing.xs,
-  },
-  subHeadline: {
-    fontSize: 16,
-    color: theme.colors.textMuted,
-    lineHeight: 24,
-  },
-
-  // AI Coach
+  // AI Coach Hero Card
   coachSection: {
     marginBottom: theme.spacing.xxl,
   },
   shimmerBox: {
-    backgroundColor: '#D1D1D6',
-    borderRadius: theme.radii.lg,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 20,
   },
-  coachCard: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: theme.radii.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'hidden',
-    paddingVertical: theme.spacing.lg,
-    paddingRight: theme.spacing.lg,
+  heroCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    padding: 24,
+    ...theme.shadows.card,
   },
-  coachAccent: {
-    width: 4,
-    alignSelf: 'stretch',
-    backgroundColor: theme.colors.stateGreen,
-    marginRight: theme.spacing.md,
+  heroGreeting: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  coachText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    lineHeight: 22,
-    letterSpacing: -0.2,
+  heroMessage: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.colors.textPrimary,
+    lineHeight: 24,
   },
 
   // Sections

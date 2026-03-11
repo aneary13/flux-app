@@ -171,6 +171,8 @@ export interface components {
   schemas: {
     /** AIResponse */
     AIResponse: {
+      /** Greeting */
+      greeting: string;
       /** Message */
       message: string;
     };
@@ -325,10 +327,6 @@ export interface components {
       conditioning_levels: {
         [key: string]: number;
       };
-      /** Readiness Headline */
-      readiness_headline: string;
-      /** Readiness Summary Text */
-      readiness_summary_text: string;
     };
     /** ValidationError */
     ValidationError: {

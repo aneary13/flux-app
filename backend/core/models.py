@@ -76,8 +76,6 @@ class PatternState(BaseModel):
 class UserStateResponse(BaseModel):
     patterns: dict[str, PatternState]
     conditioning_levels: dict[str, int]
-    readiness_headline: str
-    readiness_summary_text: str
 
 
 class SessionMetadata(BaseModel):
@@ -88,6 +86,7 @@ class SessionMetadata(BaseModel):
 
 
 class AIResponse(BaseModel):
+    greeting: str
     message: str
 
 
