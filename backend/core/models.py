@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # -----------------------------
@@ -86,8 +86,22 @@ class SessionMetadata(BaseModel):
 
 
 class AIResponse(BaseModel):
-    greeting: str
+    greeting: str = Field(..., max_length=40)
     message: str
+
+    @field_validator("greeting")
+    @classmethod
+    def validate_greeting_words(cls, v: str) -> str:
+        if len(v.split()) > 5:
+            raise ValueError("Greeting exceeds 5 words.")
+        return v
+
+    @field_validator("message")
+    @classmethod
+    def validate_message_words(cls, v: str) -> str:
+        if len(v.split()) > 30:
+            raise ValueError("Message exceeds 30 words.")
+        return v
 
 
 class GeneratedExercise(BaseModel):

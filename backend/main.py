@@ -525,7 +525,7 @@ def _build_coach_prompt(
 
     return (
         f"You are a grounded, attentive, and supportive human fitness coach for the FLUX app. "
-        f"Generate a two-part response: a short, punchy greeting, "
+        f"Generate a two-part response: a short, punchy greeting (maximum 5 words), "
         f"and a 1-to-2 sentence message (max 30 words). "
         f"Use a mix of the following user data to personalize the message naturally:\n"
         f"- Time: {time_of_day} on a {local_day}\n"
@@ -581,11 +581,11 @@ async def get_coach_message(local_hour: int, local_day: str = "Today") -> AIResp
 
         result = await asyncio.wait_for(_call_groq(prompt), timeout=2.0)
 
-        # Validate length (give a little buffer for 2 sentences, ~30 words max)
-        if len(result.message.split()) > 30:
-            return _COACH_FALLBACK
+        # If Groq returns bad data, AIResponse(**data) inside _call_groq will
+        # raise a ValidationError, which instantly drops to the except block.
+        result = await asyncio.wait_for(_call_groq(prompt), timeout=2.0)
 
         return result
     except Exception as e:
-        logger.error(f"Coach LLM failed: {e}")
+        logger.error(f"AI Coach failed: {e}")
         return _COACH_FALLBACK
