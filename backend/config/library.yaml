@@ -232,3 +232,9 @@ catalog:
       unilateral: false
       load: BODYWEIGHT
       unit: WATTS
+
+  - name: "Rowing Machine"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: WATTS
