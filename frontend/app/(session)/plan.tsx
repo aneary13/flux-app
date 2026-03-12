@@ -86,7 +86,10 @@ export default function PlanScreen() {
 
             <View style={styles.pillsContainer}>
               {block.exercises.map((ex, exIndex) => (
-                <Pill key={ex.name || `ex-${index}-${exIndex}`} label={ex.name} />
+                <Pill
+                  key={ex.name || `ex-${index}-${exIndex}`}
+                  label={ex.is_conditioning && ex.description ? ex.description : ex.name}
+                />
               ))}
             </View>
           </Card>

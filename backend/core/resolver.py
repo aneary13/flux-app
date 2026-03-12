@@ -227,13 +227,6 @@ class WorkoutResolver:
             # SIT is an all-out sprint, no specific wattage calculation
             target_intensity = "MAX"
 
-        # Format conditioning description
-        description = {
-            "HIIT": f"High Intensity Interval Training (Level {level_str})",
-            "SIT": f"Sprint Interval Training (Level {level_str})",
-            "SS": "Steady State Training (Zone 2)",
-        }
-
         return [
             {
                 "name": equipment,
@@ -241,7 +234,7 @@ class WorkoutResolver:
                 "load_type": "BODYWEIGHT",
                 "tracking_unit": tracking_unit,
                 "is_conditioning": True,
-                "description": description[protocol],
+                "description": level_details.get("description", protocol),
                 "protocol": protocol,
                 "rounds": level_details.get("rounds", 1),
                 "work_seconds": level_details.get("work_seconds"),
