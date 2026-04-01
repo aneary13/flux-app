@@ -357,9 +357,16 @@ export function ExerciseCard({ exercise }: ExerciseCardProps) {
     <View style={styles.cardContainer}>
       {/* Header */}
       <View style={styles.header}>
-        <Typography variant="h3">{exercise.name}</Typography>
-        {isConditioning && exercise.description && (
+        <Typography variant="h3">
+          {isConditioning ? (exercise.protocol ?? exercise.name) : exercise.name}
+        </Typography>
+        {exercise.is_benchmark && (
           <Typography variant="caption" color={theme.colors.stateOrange} style={{ marginTop: 4 }}>
+            Benchmark Session
+          </Typography>
+        )}
+        {isConditioning && exercise.description && (
+          <Typography variant="caption" color={theme.colors.textMuted} style={{ marginTop: 4 }}>
             {exercise.description}
           </Typography>
         )}

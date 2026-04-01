@@ -1,6 +1,6 @@
 # Conditioning protocols
 
-equipment: "Assault Bike"
+equipment: "Rowing Machine"
 tracking_unit: "WATTS"
 
 protocols:
@@ -43,7 +43,7 @@ protocols:
 
   HIIT: # High Intensity Interval Training (Aerobic Capacity)
     1:
-      description: "2-Mile Time Trial (Benchmark)"
+      description: "2km Time Trial (Benchmark)"
       is_benchmark: true
       rounds: 1
       # Note: No work/rest needed for a single time trial effort

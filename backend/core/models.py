@@ -1,6 +1,6 @@
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # -----------------------------
@@ -70,6 +70,7 @@ class PatternState(BaseModel):
     last_trained_datetime: str | None
     days_since: int | None
     status_text: str
+    days_since_text: str
 
 
 class UserStateResponse(BaseModel):
@@ -78,9 +79,29 @@ class UserStateResponse(BaseModel):
 
 
 class SessionMetadata(BaseModel):
-    state: str
+    state: Literal["GREEN", "ORANGE", "RED"]
     archetype: str
     anchor_pattern: str
+    state_display_text: str
+
+
+class AIResponse(BaseModel):
+    greeting: str = Field(..., max_length=40)
+    message: str
+
+    @field_validator("greeting")
+    @classmethod
+    def validate_greeting_words(cls, v: str) -> str:
+        if len(v.split()) > 5:
+            raise ValueError("Greeting exceeds 5 words.")
+        return v
+
+    @field_validator("message")
+    @classmethod
+    def validate_message_words(cls, v: str) -> str:
+        if len(v.split()) > 30:
+            raise ValueError("Message exceeds 30 words.")
+        return v
 
 
 class GeneratedExercise(BaseModel):
@@ -96,7 +117,7 @@ class GeneratedExercise(BaseModel):
     rounds: int | None = None
     work_seconds: int | None = None
     rest_seconds: int | None = None
-    is_benchmark: bool | None = None
+    is_benchmark: bool = False
     target_intensity: int | str | None = None
 
 

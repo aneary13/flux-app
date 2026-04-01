@@ -7,6 +7,7 @@ import {
   LoggedSet,
   LogSetRequest,
   GeneratedExercise,
+  AIResponse,
 } from '../types/domain';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
@@ -51,6 +52,12 @@ export const FluxAPI = {
 
   /** Retrieves the current user biological State Document formatted as a View Model */
   getUserState: () => fetchApi<UserStateResponse>('/user/state'),
+
+  /** Fetches a dynamic AI-generated hype message. Pass the device's current local hour (0-23) and day name (e.g. "Monday"). */
+  getCoachMessage: (localHour: number, localDay: string) =>
+    fetchApi<AIResponse>(
+      `/user/coach-message?local_hour=${localHour}&local_day=${encodeURIComponent(localDay)}`
+    ),
 
   // --- B. The Generation Loop ---
 

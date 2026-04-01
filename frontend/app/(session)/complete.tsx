@@ -77,7 +77,7 @@ export default function CompleteSessionScreen() {
 
         const didCompleteConditioning = loggedSets[exId]?.some((s) => s && s.completed);
 
-        if (didCompleteConditioning && condEx.description) {
+        if (didCompleteConditioning && condEx.is_conditioning && condEx.protocol) {
           completedConditioning = condEx.protocol as ConditioningProtocol;
         }
       }
@@ -158,12 +158,7 @@ export default function CompleteSessionScreen() {
                 {/* 1. Visually Grouped Checklist Row */}
                 {checklistExercises.length > 0 &&
                   (() => {
-                    const title =
-                      block.type === 'PREP'
-                        ? 'Mobility & Activation'
-                        : block.type === 'POWER'
-                          ? 'Plyometrics'
-                          : 'Checklist';
+                    const title = block.label || block.type;
 
                     // Tally up completed checklist items
                     let completedChecklists = 0;

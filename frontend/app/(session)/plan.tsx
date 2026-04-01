@@ -27,26 +27,16 @@ export default function PlanScreen() {
   }
 
   // --- State Mapping Logic ---
-  const sessionState = sessionData.metadata.state; // "GREEN", "ORANGE", or "RED"
+  // state_display_text is pre-formatted by the backend ("Full Intensity Training", etc.)
+  const sessionState = sessionData.metadata.state; // 'GREEN' | 'ORANGE' | 'RED'
+  const archetypeText = sessionData.metadata.state_display_text;
 
-  const stateConfig = {
-    GREEN: {
-      text: 'Full Intensity Training',
-      color: theme.colors.stateGreen,
-    },
-    ORANGE: {
-      text: 'Modified Training',
-      color: theme.colors.stateOrange,
-    },
-    RED: {
-      text: 'Rehab and Recovery',
-      color: theme.colors.stateRed,
-    },
+  const stateColorMap = {
+    GREEN: theme.colors.stateGreen,
+    ORANGE: theme.colors.stateOrange,
+    RED: theme.colors.stateRed,
   };
-
-  const currentConfig = stateConfig[sessionState as keyof typeof stateConfig] || stateConfig.GREEN;
-  const archetypeText = currentConfig.text;
-  const archetypeColor = currentConfig.color;
+  const archetypeColor = stateColorMap[sessionState];
 
   const handleStartWorkout = async () => {
     setIsStarting(true);
@@ -96,7 +86,10 @@ export default function PlanScreen() {
 
             <View style={styles.pillsContainer}>
               {block.exercises.map((ex, exIndex) => (
-                <Pill key={ex.name || `ex-${index}-${exIndex}`} label={ex.name} />
+                <Pill
+                  key={ex.name || `ex-${index}-${exIndex}`}
+                  label={ex.is_conditioning && ex.description ? ex.description : ex.name}
+                />
               ))}
             </View>
           </Card>
