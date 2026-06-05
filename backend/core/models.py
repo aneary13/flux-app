@@ -76,6 +76,8 @@ class PatternState(BaseModel):
 class UserStateResponse(BaseModel):
     patterns: dict[str, PatternState]
     conditioning_levels: dict[str, int]
+    next_pattern: str | None = None
+    next_conditioning_protocol: str | None = None
 
 
 class SessionMetadata(BaseModel):
@@ -121,10 +123,15 @@ class GeneratedExercise(BaseModel):
     target_intensity: int | str | None = None
 
 
+class GeneratedComponent(BaseModel):
+    label: str
+    exercises: list[GeneratedExercise]
+
+
 class GeneratedBlock(BaseModel):
     type: str
     label: str
-    exercises: list[GeneratedExercise]
+    components: list[GeneratedComponent]
 
 
 class GeneratedSessionResponse(BaseModel):

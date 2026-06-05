@@ -117,26 +117,27 @@ def get_user_state() -> UserStateResponse:
     for the Homescreen. Performs datetime calculations on the backend.
     """
     try:
-        response = (
+        # Fetch all user configs in one query (state + logic)
+        configs_response = (
             supabase.table("user_configs")
-            .select("data")
+            .select("slug, data")
             .eq("user_id", DUMMY_USER_ID)
-            .eq("slug", "state")
             .execute()
         )
+        configs_data = cast(list[dict[str, Any]], configs_response.data)
+        configs_by_slug = {row["slug"]: row["data"] for row in configs_data}
 
         # Fallback State
-        raw_state = {
-            "last_trained": {"SQUAT": None, "PUSH": None, "HINGE": None, "PULL": None},
-            "conditioning_levels": {"HIIT": 1, "SIT": 1},
-        }
+        raw_state = configs_by_slug.get(
+            "state",
+            {
+                "last_trained": {"SQUAT": None, "PUSH": None, "HINGE": None, "PULL": None},
+                "conditioning_levels": {"HIIT": 1, "SIT": 1},
+            },
+        )
 
-        data_list = cast(list[dict[str, Any]], response.data)
-        if data_list and data_list[0].get("data"):
-            raw_state = cast(dict[str, Any], data_list[0]["data"])
+        logic_config = configs_by_slug.get("logic", {})
 
-        # Explicitly type the dictionaries so Mypy knows they aren't generic objects
-        # Force Mypy to trust the JSON schema we expect
         last_trained_data = cast(
             dict[str, str | None],
             raw_state.get(
@@ -185,9 +186,41 @@ def get_user_state() -> UserStateResponse:
                     days_since_text=days_text,
                 )
 
+        # Derive next pattern from rotation order
+        rotation = logic_config.get("rotation_order", ["SQUAT", "PUSH", "HINGE", "PULL"])
+        next_pattern: str | None = None
+        if all(v is None for v in last_trained_data.values()):
+            next_pattern = rotation[0]
+        else:
+            most_recent_pattern = None
+            most_recent_time: datetime | None = None
+            for p in rotation:
+                ts = last_trained_data.get(p)
+                if ts:
+                    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    if most_recent_time is None or dt > most_recent_time:
+                        most_recent_time = dt
+                        most_recent_pattern = p
+            if most_recent_pattern:
+                idx = rotation.index(most_recent_pattern)
+                next_pattern = rotation[(idx + 1) % len(rotation)]
+            else:
+                next_pattern = rotation[0]
+
+        # Derive next conditioning protocol
+        last_cond = raw_state.get("last_conditioning_protocol")
+        if last_cond == "HIIT":
+            next_cond = "SIT"
+        elif last_cond == "SIT":
+            next_cond = "HIIT"
+        else:
+            next_cond = "HIIT"
+
         return UserStateResponse(
             patterns=patterns_view,
             conditioning_levels=cond_levels,
+            next_pattern=next_pattern,
+            next_conditioning_protocol=next_cond,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -208,16 +241,30 @@ def generate_workout_session(request: GenerateSessionRequest) -> GeneratedSessio
         configs_data = cast(list[dict[str, Any]], configs_response.data)
         system_configs = {row["slug"]: row["data"] for row in configs_data}
 
+        # Extract flow_indices from the state doc (already fetched above alongside YAML configs)
+        _default_flow_indices: dict[str, int] = {
+            "mobility": 0,
+            "extensive_plyo": 0,
+            "intensive_plyo": 0,
+            "core_plane": 0,
+        }
+        state_doc = system_configs.get("state", {})
+        flow_indices = {**_default_flow_indices, **state_doc.get("flow_indices", {})}
+
         exercises_response = supabase.table("exercises").select("*").execute()
         exercises_catalog = cast(list[dict[str, Any]], exercises_response.data)
 
         resolver = WorkoutResolver(configs=system_configs, exercises=exercises_catalog)
+
+        last_conditioning_protocol = state_doc.get("last_conditioning_protocol")
 
         session_plan = resolver.generate_session(
             knee_pain=request.knee_pain,
             energy=request.energy,
             last_trained=request.last_trained,
             conditioning_levels=request.conditioning_levels,
+            flow_indices=flow_indices,
+            last_conditioning_protocol=last_conditioning_protocol,
         )
 
         return GeneratedSessionResponse(**session_plan)
@@ -306,7 +353,8 @@ def log_atomic_set(session_id: str, request: LogSetRequest) -> dict[str, str]:
 @app.post("/sessions/{session_id}/complete")
 def complete_session(session_id: str, request: CompleteSessionRequest) -> dict[str, str]:
     """
-    Finalizes the session and securely updates the UTC timestamp for the anchor pattern.
+    Finalizes the session. Only updates progression state for exercises
+    that were actually performed (have logged sets).
     """
     try:
         # 1. Update the Session Record with notes, timestamp, and anchor pattern
@@ -321,48 +369,110 @@ def complete_session(session_id: str, request: CompleteSessionRequest) -> dict[s
             "id", session_id
         ).execute()
 
-        # 2. Fetch the user's current state
-        state_response = (
-            supabase.table("user_configs")
-            .select("id, data")
-            .eq("user_id", DUMMY_USER_ID)
-            .eq("slug", "state")
+        # 2. Query what was actually logged in this session
+        sets_response = (
+            supabase.table("workout_sets")
+            .select("exercise_name")
+            .eq("session_id", session_id)
             .execute()
         )
+        logged_exercises = {
+            row["exercise_name"] for row in cast(list[dict[str, Any]], sets_response.data)
+        }
 
-        state_data = cast(list[dict[str, Any]], state_response.data)
-        if state_data:
-            current_state = cast(dict[str, Any], state_data[0]["data"])
-            state_row_id = state_data[0]["id"]
+        # 3. Fetch user configs (state + selections + conditioning)
+        configs_response = (
+            supabase.table("user_configs")
+            .select("id, slug, data")
+            .eq("user_id", DUMMY_USER_ID)
+            .execute()
+        )
+        configs_data = cast(list[dict[str, Any]], configs_response.data)
+        configs_by_slug = {row["slug"]: row for row in configs_data}
+
+        state_row = configs_by_slug.get("state")
+        if state_row:
+            current_state = cast(dict[str, Any], state_row["data"])
+            state_row_id = state_row["id"]
         else:
             current_state = {
                 "last_trained": {"SQUAT": None, "PUSH": None, "HINGE": None, "PULL": None},
                 "conditioning_levels": {"HIIT": 1, "SIT": 1},
+                "flow_indices": {"mobility": 0, "extensive_plyo": 0, "core_plane": 0},
             }
             state_row_id = None
 
-        # Ensure schema structure exists
-        if "last_trained" not in current_state:
-            current_state["last_trained"] = {
+        current_state.setdefault(
+            "last_trained",
+            {
                 "SQUAT": None,
                 "PUSH": None,
                 "HINGE": None,
                 "PULL": None,
-            }
+            },
+        )
 
-        # 3. Update specific anchor pattern with UTC Now
-        if request.anchor_pattern:
-            current_state["last_trained"][request.anchor_pattern] = datetime.now(UTC).isoformat()
+        selections_config = configs_by_slug.get("selections", {}).get("data", {})
+        conditioning_config = configs_by_slug.get("conditioning", {}).get("data", {})
 
-        # 4. Recalculate conditioning (fully automatic linear progression)
-        if request.completed_conditioning_protocol:
+        # 4. Conditionally update last_trained for anchor pattern
+        if request.anchor_pattern and logged_exercises:
+            anchor = request.anchor_pattern
+            main_options = selections_config.get(anchor, {}).get("MAIN", {})
+            # Collect all possible exercise names for this pattern across states
+            main_exercises: set[str] = set()
+            for exercises_list in main_options.values():
+                if isinstance(exercises_list, list):
+                    main_exercises.update(exercises_list)
+            if main_exercises & logged_exercises:
+                current_state["last_trained"][anchor] = datetime.now(UTC).isoformat()
+
+        # 5. Conditionally advance conditioning
+        if request.completed_conditioning_protocol and logged_exercises:
             protocol = request.completed_conditioning_protocol
-            if "conditioning_levels" not in current_state:
-                current_state["conditioning_levels"] = {}
-            current_level = current_state["conditioning_levels"].get(protocol, 1)
-            current_state["conditioning_levels"][protocol] = current_level + 1
+            equipment = conditioning_config.get("equipment", "Rowing Machine")
+            if equipment in logged_exercises:
+                current_state.setdefault("conditioning_levels", {})
+                current_level = current_state["conditioning_levels"].get(protocol, 1)
+                current_state["conditioning_levels"][protocol] = current_level + 1
+                current_state["last_conditioning_protocol"] = protocol
 
-        # 5. Save the new state to Supabase
+        # 6. Conditionally advance flow indices based on what was performed
+        _default_flow_indices: dict[str, int] = {
+            "mobility": 0,
+            "extensive_plyo": 0,
+            "core_plane": 0,
+        }
+        current_state.setdefault("flow_indices", dict(_default_flow_indices))
+        for key, default in _default_flow_indices.items():
+            current_state["flow_indices"].setdefault(key, default)
+
+        # Build sets of exercise names per flow category for comparison
+        flow_exercise_sets: dict[str, set[str]] = {}
+
+        # Mobility exercises
+        mobility_flows = selections_config.get("MOBILITY", {}).get("DYNAMIC", {}).get("flows", [])
+        flow_exercise_sets["mobility"] = {name for flow in mobility_flows for name in flow}
+
+        # Extensive plyo exercises
+        ext_plyo_flows = selections_config.get("PLYO", {}).get("EXTENSIVE", {}).get("flows", [])
+        flow_exercise_sets["extensive_plyo"] = {name for flow in ext_plyo_flows for name in flow}
+
+        # Core exercises (all planes)
+        core_config = selections_config.get("CORE", {})
+        core_names: set[str] = set()
+        for plane_data in core_config.values():
+            if isinstance(plane_data, dict):
+                for exercises_list in plane_data.values():
+                    if isinstance(exercises_list, list):
+                        core_names.update(exercises_list)
+        flow_exercise_sets["core_plane"] = core_names
+
+        for flow_key in _default_flow_indices:
+            if flow_exercise_sets.get(flow_key, set()) & logged_exercises:
+                current_state["flow_indices"][flow_key] += 1
+
+        # 7. Save the new state to Supabase
         if state_row_id:
             supabase.table("user_configs").update(cast(Any, {"data": current_state})).eq(
                 "id", state_row_id

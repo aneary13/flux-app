@@ -71,14 +71,14 @@ export default function CompleteSessionScreen() {
       let completedConditioning: ConditioningProtocol | undefined = undefined;
       const condBlock = sessionData?.blocks.find((b) => b.type === 'CONDITIONING');
 
-      if (condBlock && condBlock.exercises.length > 0) {
-        const condEx = condBlock.exercises[0];
-        const exId = condEx.name;
+      if (condBlock && condBlock.components.length > 0) {
+        const condEx = condBlock.components[0].exercises[0];
+        if (condEx) {
+          const didCompleteConditioning = loggedSets[condEx.name]?.some((s) => s && s.completed);
 
-        const didCompleteConditioning = loggedSets[exId]?.some((s) => s && s.completed);
-
-        if (didCompleteConditioning && condEx.is_conditioning && condEx.protocol) {
-          completedConditioning = condEx.protocol as ConditioningProtocol;
+          if (didCompleteConditioning && condEx.is_conditioning && condEx.protocol) {
+            completedConditioning = condEx.protocol as ConditioningProtocol;
+          }
         }
       }
 
@@ -120,92 +120,87 @@ export default function CompleteSessionScreen() {
         </View>
 
         {/* Block Summary Cards */}
-        {sessionData?.blocks.map((block, index) => {
-          const checklistExercises = block.exercises.filter(
-            (ex) => ex.tracking_unit === 'CHECKLIST'
-          );
-          const standardExercises = block.exercises.filter(
-            (ex) => ex.tracking_unit !== 'CHECKLIST'
-          );
-
-          return (
-            <Card
-              key={block.label || `block-${index}`}
-              style={styles.blockCard}
-              padding={theme.spacing.lg}
-            >
-              {/* Block Header */}
-              <View style={styles.blockHeader}>
-                <View style={styles.blockHeaderLeft}>
-                  <View style={styles.blockPill}>
-                    <Typography variant="label" style={styles.blockPillText}>
-                      {block.type}
-                    </Typography>
-                  </View>
-                  <Typography variant="body" color={theme.colors.textMuted}>
-                    {formatTime(blockDurations[block.type])}
+        {sessionData?.blocks.map((block, index) => (
+          <Card
+            key={block.label || `block-${index}`}
+            style={styles.blockCard}
+            padding={theme.spacing.lg}
+          >
+            {/* Block Header */}
+            <View style={styles.blockHeader}>
+              <View style={styles.blockHeaderLeft}>
+                <View style={styles.blockPill}>
+                  <Typography variant="label" style={styles.blockPillText}>
+                    {block.type}
                   </Typography>
                 </View>
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={24}
-                  color={theme.colors.stateGreen}
-                />
+                <Typography variant="body" color={theme.colors.textMuted}>
+                  {formatTime(blockDurations[block.type])}
+                </Typography>
               </View>
+              <Ionicons name="checkmark-circle-outline" size={24} color={theme.colors.stateGreen} />
+            </View>
 
-              {/* Exercises List */}
-              <View style={styles.exerciseList}>
-                {/* 1. Visually Grouped Checklist Row */}
-                {checklistExercises.length > 0 &&
-                  (() => {
-                    const title = block.label || block.type;
+            {/* Components List */}
+            <View style={styles.exerciseList}>
+              {block.components.map((comp, compIndex) => {
+                const checklistExercises = comp.exercises.filter(
+                  (ex) => ex.tracking_unit === 'CHECKLIST'
+                );
+                const standardExercises = comp.exercises.filter(
+                  (ex) => ex.tracking_unit !== 'CHECKLIST'
+                );
 
-                    // Tally up completed checklist items
-                    let completedChecklists = 0;
-                    checklistExercises.forEach((ex) => {
-                      const exId = ex.name;
-                      if (loggedSets[exId]?.[0]?.completed) completedChecklists++;
-                    });
+                return (
+                  <React.Fragment key={comp.label || `comp-${compIndex}`}>
+                    {/* Checklist summary row */}
+                    {checklistExercises.length > 0 &&
+                      (() => {
+                        let completedChecklists = 0;
+                        checklistExercises.forEach((ex) => {
+                          if (loggedSets[ex.name]?.[0]?.completed) completedChecklists++;
+                        });
 
-                    const totalChecklists = checklistExercises.length;
-                    const isAllDone = completedChecklists === totalChecklists;
-                    const statusText = isAllDone
-                      ? 'Completed'
-                      : `${completedChecklists}/${totalChecklists} done`;
+                        const totalChecklists = checklistExercises.length;
+                        const isAllDone = completedChecklists === totalChecklists;
+                        const statusText = isAllDone
+                          ? 'Completed'
+                          : `${completedChecklists}/${totalChecklists} done`;
 
-                    return (
-                      <View style={styles.exerciseRow}>
-                        <Typography variant="body" style={styles.exerciseName}>
-                          {title}
-                        </Typography>
-                        <Typography variant="body" color={theme.colors.textMuted}>
-                          {statusText}
-                        </Typography>
-                      </View>
-                    );
-                  })()}
+                        return (
+                          <View style={styles.exerciseRow}>
+                            <Typography variant="body" style={styles.exerciseName}>
+                              {comp.label}
+                            </Typography>
+                            <Typography variant="body" color={theme.colors.textMuted}>
+                              {statusText}
+                            </Typography>
+                          </View>
+                        );
+                      })()}
 
-                {/* 2. Standard Exercises */}
-                {standardExercises.map((exercise, exIndex) => {
-                  const exerciseId = exercise.name;
-                  const setsLogged =
-                    loggedSets[exerciseId]?.filter((s) => s && s.completed).length || 0;
+                    {/* Standard exercises */}
+                    {standardExercises.map((exercise, exIndex) => {
+                      const setsLogged =
+                        loggedSets[exercise.name]?.filter((s) => s && s.completed).length || 0;
 
-                  return (
-                    <View key={exerciseId || `ex-${exIndex}`} style={styles.exerciseRow}>
-                      <Typography variant="body" style={styles.exerciseName}>
-                        {exercise.name}
-                      </Typography>
-                      <Typography variant="body" color={theme.colors.textMuted}>
-                        {setsLogged === 1 ? '1 set' : `${setsLogged} sets`}
-                      </Typography>
-                    </View>
-                  );
-                })}
-              </View>
-            </Card>
-          );
-        })}
+                      return (
+                        <View key={exercise.name || `ex-${exIndex}`} style={styles.exerciseRow}>
+                          <Typography variant="body" style={styles.exerciseName}>
+                            {exercise.name}
+                          </Typography>
+                          <Typography variant="body" color={theme.colors.textMuted}>
+                            {setsLogged === 1 ? '1 set' : `${setsLogged} sets`}
+                          </Typography>
+                        </View>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          </Card>
+        ))}
       </ScrollView>
 
       {/* Footer Container */}

@@ -5,6 +5,7 @@ export type UserStateResponse = components['schemas']['UserStateResponse'];
 export type PatternState = components['schemas']['PatternState'];
 export type GeneratedSessionResponse = components['schemas']['GeneratedSessionResponse'];
 export type GeneratedBlock = components['schemas']['GeneratedBlock'];
+export type GeneratedComponent = components['schemas']['GeneratedComponent'];
 export type GeneratedExercise = components['schemas']['GeneratedExercise'];
 export type SessionMetadata = components['schemas']['SessionMetadata'];
 export type StartSessionRequest = components['schemas']['StartSessionRequest'];
@@ -17,7 +18,7 @@ export type AIResponse = components['schemas']['AIResponse'];
 // We redefine these strictly here because OpenAPI string types often compile down
 // to generic `string` rather than specific unions, and our UI needs these for conditional rendering.
 
-export type Archetype = 'PERFORMANCE' | 'RECOVERY';
+export type Archetype = 'GREEN_ORANGE' | 'RED';
 export type BiologicalState = 'GREEN' | 'ORANGE' | 'RED';
 export type MovementPattern = 'SQUAT' | 'HINGE' | 'PUSH' | 'PULL';
 export type ConditioningProtocol = 'HIIT' | 'SIT' | 'SS';

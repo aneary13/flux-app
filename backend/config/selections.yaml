@@ -52,19 +52,31 @@ LUNGE:
     ORANGE:
       - "Lunge Iso Hold"
 
-RFD:
-  HIGH:
-    DEFAULT:
-      - "Hurdle Jump"
-      - "Hang Power Clean"
-  LOW:
-    DEFAULT:
-      - "Box Jump"
-      - "Snatch Grip High Pull"
-  UPPER:
-    DEFAULT: # Only called on RED days per logic.yaml
-      - "MB Chest Pass"
-      - "MB Rotational Throw"
+PLYO:
+  EXTENSIVE:
+    flows:
+      - - "Squat Jump"
+        - "Single Leg Pogo"
+        - "Single Leg Lateral Pogo"
+        - "Heiden"
+        - "Criss Cross Pogo"
+      - - "Scissor Jump"
+        - "Single Leg Zig Zag"
+        - "Single Leg Lateral Zig Zag"
+        - "Heiden"
+        - "Rotational Pogo"
+  INTENSIVE:
+    flows:
+      - - "Seated to Vertical Jump"
+        - "Seated Broad Jump"
+      - - "Single Leg Hop"
+        - "Knee to Box Jump"
+        - "Band Assisted Push Up"
+      - - "Lateral Jump"
+        - "Short Contact Depth Jump"
+      - - "Band Assisted Single Leg Hop"
+        - "Lateral Box Jump"
+        - "Band Assisted Push Up"
 
 CORE:
   TRANSVERSE:
@@ -87,9 +99,32 @@ ISOMETRIC:
 
 MOBILITY:
   DYNAMIC:
-    DEFAULT:
-      - "Inchworms"
-      - "World's Greatest Stretch"
-      - "Cat Cow"
-      - "Hip Flexor Stretch"
-      - "Pigeon Stretch"
+    flows:
+      - - "Inchworms"
+        - "World's Greatest Stretch"
+        - "Cat Cow"
+        - "Hip Flexor Stretch"
+        - "Pigeon Stretch"
+
+# Workout Pairings: defines accessories and intensive plyo set for each anchor pattern
+workout_pairings:
+  SQUAT:
+    intensive_plyo_set: 0
+    accessories:
+      - "PULL:ACCESSORY_HORIZONTAL"
+      - "HINGE:ACCESSORY_HIP"
+  PUSH:
+    intensive_plyo_set: 1
+    accessories:
+      - "SQUAT:ACCESSORY"
+      - "PULL:ACCESSORY_VERTICAL"
+  HINGE:
+    intensive_plyo_set: 2
+    accessories:
+      - "PUSH:ACCESSORY_HORIZONTAL"
+      - "LUNGE:ACCESSORY"
+  PULL:
+    intensive_plyo_set: 3
+    accessories:
+      - "HINGE:ACCESSORY_KNEE"
+      - "PUSH:ACCESSORY_VERTICAL"

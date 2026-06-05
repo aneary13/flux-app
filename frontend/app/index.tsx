@@ -213,6 +213,32 @@ export default function HomeDashboard() {
           </View>
         </View>
 
+        {/* --- Next Session Preview --- */}
+        {(stateDocument.next_pattern || stateDocument.next_conditioning_protocol) && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Next Session</Text>
+            </View>
+            <View style={styles.nextSessionCard}>
+              {stateDocument.next_pattern && (
+                <View style={styles.nextSessionRow}>
+                  <Ionicons name="barbell-outline" size={18} color={theme.colors.textMuted} />
+                  <Text style={styles.nextSessionText}>{stateDocument.next_pattern} Day</Text>
+                </View>
+              )}
+              {stateDocument.next_conditioning_protocol && (
+                <View style={styles.nextSessionRow}>
+                  <Ionicons name="pulse-outline" size={18} color={theme.colors.textMuted} />
+                  <Text style={styles.nextSessionText}>
+                    {PROTOCOL_NAMES[stateDocument.next_conditioning_protocol] ||
+                      stateDocument.next_conditioning_protocol}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Padding for sticky button */}
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -372,6 +398,25 @@ const styles = StyleSheet.create({
   },
   protocolName: {
     fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+  },
+
+  // Next Session Card
+  nextSessionCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    ...theme.shadows.card,
+  },
+  nextSessionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  nextSessionText: {
+    fontSize: 15,
     fontWeight: '600',
     color: theme.colors.textPrimary,
   },

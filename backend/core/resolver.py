@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 
@@ -20,13 +20,13 @@ class WorkoutResolver:
 
         # 3. Session State Variables (populated during generation)
         self.current_state = "GREEN"
-        self.archetype = "PERFORMANCE"
+        self.archetype = "GREEN_ORANGE"
         self.main_pattern: str | None = None
 
     def _evaluate_state(self, knee_pain: int, energy: int) -> tuple[str, str]:
         """
         Translates Pain & Energy into a biological State (GREEN/ORANGE/RED)
-        and an Archetype (PERFORMANCE/RECOVERY).
+        and a session template key (GREEN_ORANGE/RED).
         """
         thresholds = self.logic.get("thresholds", {})
         kp_limits = thresholds.get("knee_pain", {"lower": 3, "upper": 6})
@@ -50,51 +50,43 @@ class WorkoutResolver:
 
         # Resolve Final Status (The worst score dictates the state)
         if pain_state == "RED" or energy_state == "RED":
-            return "RED", "RECOVERY"
+            return "RED", "RED"
         elif pain_state == "ORANGE" or energy_state == "ORANGE":
-            return "ORANGE", "PERFORMANCE"
+            return "ORANGE", "GREEN_ORANGE"
         else:
-            return "GREEN", "PERFORMANCE"
+            return "GREEN", "GREEN_ORANGE"
 
     def _resolve_main_pattern(self, last_trained: dict[str, str | None]) -> str:
         """
-        Calculates which pattern is 'due' based on elapsed time since the last
-        training session and priority tie-breakers.
+        Determines which pattern is next in the configured rotation order,
+        based on which pattern was most recently performed.
         """
-        priorities = self.logic.get("pattern_priority", ["SQUAT", "PUSH", "HINGE", "PULL"])
-        if not last_trained:
-            last_trained = {p: None for p in priorities}
+        rotation: list[str] = self.logic.get("rotation_order", ["SQUAT", "PUSH", "HINGE", "PULL"])
 
-        now = datetime.now(UTC)
-        debts = {}
+        if not last_trained or all(v is None for v in last_trained.values()):
+            self.main_pattern = rotation[0]
+            return rotation[0]
 
-        # 1. Calculate debt in seconds
-        for pattern in priorities:
-            timestamp_str = last_trained.get(pattern)
-            if not timestamp_str:
-                # Never trained = infinite debt
-                debts[pattern] = float("inf")
-            else:
-                # Handle ISO 8601 parsing (Python 3.11+ handles the 'Z' suffix gracefully)
-                last_dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                debts[pattern] = (now - last_dt).total_seconds()
+        # Find the most recently trained pattern
+        most_recent_pattern = None
+        most_recent_time: datetime | None = None
+        for pattern in rotation:
+            ts = last_trained.get(pattern)
+            if ts:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                if most_recent_time is None or dt > most_recent_time:
+                    most_recent_time = dt
+                    most_recent_pattern = pattern
 
-        # 2. Find the highest debt value
-        max_debt = max(debts.values())
+        if most_recent_pattern is None:
+            self.main_pattern = rotation[0]
+            return rotation[0]
 
-        # 3. Find all patterns tied for that highest debt
-        due_patterns = [p for p, d in debts.items() if d == max_debt]
-
-        # 4. Tie-breaker: Consult the system priority list
-        for pattern in priorities:
-            if pattern in due_patterns:
-                resolved_pattern = str(pattern)
-                self.main_pattern = resolved_pattern
-                return resolved_pattern
-
-        fallback_pattern = str(due_patterns[0])
-        self.main_pattern = fallback_pattern
-        return fallback_pattern
+        # Next in rotation after the most recently trained
+        idx = rotation.index(most_recent_pattern)
+        next_pattern = rotation[(idx + 1) % len(rotation)]
+        self.main_pattern = next_pattern
+        return next_pattern
 
     def _enrich_exercise(self, exercise_name: str) -> dict[str, Any]:
         """
@@ -127,9 +119,23 @@ class WorkoutResolver:
 
         return [self._enrich_exercise(name) for name in exercise_names]
 
+    def _resolve_episodic_flow(
+        self, category: str, subcategory: str, flow_index: int
+    ) -> list[dict[str, Any]]:
+        """
+        Selects a flow from an array-of-arrays using modulo math, then enriches
+        each exercise in that flow. The flow_index advances each session so the
+        user cycles through all defined flows before repeating.
+        """
+        flows = self.selections.get(category, {}).get(subcategory, {}).get("flows", [])
+        if not flows:
+            return []
+        selected_flow = flows[flow_index % len(flows)]
+        return [self._enrich_exercise(name) for name in selected_flow]
+
     def _parse_component(self, component_str: str) -> list[dict[str, Any]]:
         """
-        Interprets layout strings ('MAIN_PATTERN', 'RELATED_ACCESSORIES', 'MOBILITY:DYNAMIC')
+        Interprets layout strings ('MAIN_PATTERN', 'PAIRED_ACCESSORIES', 'MOBILITY:DYNAMIC')
         and resolves them into a list of enriched exercises.
         """
         # 1. Handle dynamic Keyword: MAIN_PATTERN
@@ -138,21 +144,33 @@ class WorkoutResolver:
                 raise ValueError("Main pattern has not been resolved yet!")
             return self._resolve_literal(self.main_pattern, "MAIN")
 
-        # 2. Handle dynamic Keyword: RELATED_ACCESSORIES (Used in PERFORMANCE archetype)
-        if component_str == "RELATED_ACCESSORIES":
-            accessories = self.logic.get("relationships", {}).get(self.main_pattern, [])
-            resolved_accs = []
-            for acc in accessories:
-                # Accessories are stored as "HINGE:ACCESSORY_KNEE"
-                cat, pat = acc.split(":")
-                resolved_accs.extend(self._resolve_literal(cat, pat))
-            return resolved_accs
+        # 2. Handle dynamic Keyword: POWER_BLOCK (GREEN→intensive plyos, ORANGE→isometrics)
+        if component_str == "POWER_BLOCK":
+            if self.current_state == "GREEN":
+                pairings = self.selections.get("workout_pairings", {})
+                pairing = pairings.get(self.main_pattern, {})
+                plyo_index = pairing.get("intensive_plyo_set", 0)
+                return self._resolve_episodic_flow("PLYO", "INTENSIVE", plyo_index)
+            else:
+                # ORANGE: use isometrics instead of intensive plyos
+                return self._resolve_literal("ISOMETRIC", "PATELLAR")
 
-        # 3. Handle specific Literals with Colons: e.g., "PUSH:ACCESSORY" or "MOBILITY:DYNAMIC"
+        # 3. Handle dynamic Keyword: PAIRED_ACCESSORIES
+        if component_str == "PAIRED_ACCESSORIES":
+            pairings = self.selections.get("workout_pairings", {})
+            pairing = pairings.get(self.main_pattern, {})
+            accessories = pairing.get("accessories", [])
+            resolved = []
+            for acc_str in accessories:
+                cat, pat = acc_str.split(":")
+                resolved.extend(self._resolve_literal(cat, pat))
+            return resolved
+
+        # 4. Handle specific Literals with Colons: e.g., "PUSH:ACCESSORY" or "MOBILITY:DYNAMIC"
         if ":" in component_str:
             cat, pat = component_str.split(":")
 
-            # If the pattern is a generic "ACCESSORY" placeholder (common in RECOVERY sessions),
+            # If the pattern is a generic "ACCESSORY" placeholder (common in RED sessions),
             # we must resolve it to a concrete sub-key in the selections dictionary.
             if pat == "ACCESSORY":
                 # Look up available sub-patterns for category (e.g. PUSH -> HORIZONTAL, VERTICAL)
@@ -162,14 +180,28 @@ class WorkoutResolver:
                 accessory_options = [p for p in available_patterns if p != "MAIN"]
 
                 if accessory_options:
-                    # Logic: Pick the first available sub-pattern as the concrete target.
-                    # In a future update, this could be tied to debt or complementary logic.
                     pat = accessory_options[0]
+
+            # Episodic flow dispatch for MOBILITY:DYNAMIC, PLYO:EXTENSIVE
+            EPISODIC_FLOW_MAP = {
+                ("MOBILITY", "DYNAMIC"): "mobility",
+                ("PLYO", "EXTENSIVE"): "extensive_plyo",
+            }
+            flow_key = EPISODIC_FLOW_MAP.get((cat, pat))
+            if flow_key is not None:
+                return self._resolve_episodic_flow(cat, pat, self.flow_indices.get(flow_key, 0))
 
             return self._resolve_literal(cat, pat)
 
-        # 4. Handle broad Categories: e.g., "CORE"
-        # (Picks the first sub-pattern in the category as a default fallback)
+        # 5. Handle broad Categories: e.g., "CORE"
+        # Derives available planes dynamically from YAML keys so the resolver
+        # is agnostic to which planes are defined.
+        if component_str == "CORE":
+            planes = list(self.selections.get("CORE", {}).keys())
+            core_index = self.flow_indices.get("core_plane", 0)
+            plane = planes[core_index % len(planes)]
+            return self._resolve_literal("CORE", plane)
+
         category_dict = self.selections.get(component_str, {})
         if category_dict:
             first_pattern = next(iter(category_dict.keys()))
@@ -178,7 +210,11 @@ class WorkoutResolver:
         return []
 
     def _resolve_conditioning(
-        self, component_str: str, conditioning_levels: dict[str, int], benchmarks: dict[str, float]
+        self,
+        component_str: str,
+        conditioning_levels: dict[str, int],
+        benchmarks: dict[str, float],
+        last_conditioning_protocol: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         Resolves the conditioning block based on protocol progression,
@@ -189,11 +225,13 @@ class WorkoutResolver:
             # E.g., "CONDITIONING:SS" explicitly asks for SS
             _, protocol = component_str.split(":")
         else:
-            # If generic "CONDITIONING" (Performance days), alternate between HIIT and SIT.
-            # Whichever has the lower level is 'due'. If tied, default to HIIT.
-            hiit_lvl = conditioning_levels.get("HIIT", 1)
-            sit_lvl = conditioning_levels.get("SIT", 1)
-            protocol = "SIT" if sit_lvl < hiit_lvl else "HIIT"
+            # Alternate based on what was last performed
+            if last_conditioning_protocol == "HIIT":
+                protocol = "SIT"
+            elif last_conditioning_protocol == "SIT":
+                protocol = "HIIT"
+            else:
+                protocol = "HIIT"
 
         current_level = conditioning_levels.get(protocol, 1)
         level_str = str(current_level)
@@ -206,7 +244,7 @@ class WorkoutResolver:
             level_str = str(max_level)
 
         level_details = protocol_data.get(level_str, {})
-        equipment = self.conditioning.get("equipment", "Assault Bike")
+        equipment = self.conditioning.get("equipment", "Rowing Machine")
         tracking_unit = self.conditioning.get("tracking_unit", "WATTS")
 
         # 2. Benchmark Math & Target Intensity
@@ -251,6 +289,8 @@ class WorkoutResolver:
         last_trained: dict[str, str | None],
         conditioning_levels: dict[str, int] | None = None,
         benchmarks: dict[str, float] | None = None,
+        flow_indices: dict[str, int] | None = None,
+        last_conditioning_protocol: str | None = None,
     ) -> dict[str, Any]:
         """
         The master function that builds the entire workout.
@@ -259,6 +299,9 @@ class WorkoutResolver:
             conditioning_levels = {}
         if benchmarks is None:
             benchmarks = {}
+        if flow_indices is None:
+            flow_indices = {}
+        self.flow_indices = flow_indices
 
         self.current_state, self.archetype = self._evaluate_state(knee_pain, energy)
         self._resolve_main_pattern(last_trained)
@@ -269,25 +312,46 @@ class WorkoutResolver:
         for block in layout_templates:
             resolved_components = []
 
-            for component_str in block.get("components", []):
-                if "CONDITIONING" in component_str:
-                    # Pass the levels AND benchmarks down
-                    exercises = self._resolve_conditioning(
-                        component_str, conditioning_levels, benchmarks
+            for component in block.get("components", []):
+                component_key = (
+                    component.get("key", component) if isinstance(component, dict) else component
+                )
+                # Allow state-specific label overrides (e.g. orange_label for ORANGE days)
+                state_label_key = f"{self.current_state.lower()}_label"
+                if isinstance(component, dict) and state_label_key in component:
+                    component_label = component[state_label_key]
+                else:
+                    component_label = (
+                        component.get("label", component_key)
+                        if isinstance(component, dict)
+                        else component_key
                     )
-                    resolved_components.extend(exercises)
-                    continue
 
-                exercises = self._parse_component(component_str)
-                resolved_components.extend(exercises)
+                if "CONDITIONING" in component_key:
+                    exercises = self._resolve_conditioning(
+                        component_key,
+                        conditioning_levels,
+                        benchmarks,
+                        last_conditioning_protocol,
+                    )
+                else:
+                    exercises = self._parse_component(component_key)
 
-            # Filter out empty blocks (like the RED day Accessory bug we caught earlier)
+                if exercises:
+                    resolved_components.append(
+                        {
+                            "label": component_label,
+                            "exercises": exercises,
+                        }
+                    )
+
+            # Filter out empty blocks
             if resolved_components:
                 resolved_blocks.append(
                     {
                         "type": block.get("type"),
                         "label": block.get("label"),
-                        "exercises": resolved_components,
+                        "components": resolved_components,
                     }
                 )
 

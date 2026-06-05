@@ -7,35 +7,9 @@ thresholds:
     lower: 3
     upper: 6
 
-# Priority for "Pattern Debt" calculation
-pattern_priority:
+# Session rotation order (sequential, wraps around)
+rotation_order:
   - SQUAT
   - PUSH
   - HINGE
   - PULL
-
-# The "Related Accessories" logic (Chain of Intent)
-relationships:
-  SQUAT:
-    - PULL:ACCESSORY_HORIZONTAL
-    - HINGE:ACCESSORY_HIP
-  PUSH:
-    - SQUAT:ACCESSORY
-    - PULL:ACCESSORY_VERTICAL
-  HINGE:
-    - PUSH:ACCESSORY_HORIZONTAL
-    - LUNGE:ACCESSORY
-  PULL:
-    - HINGE:ACCESSORY_KNEE
-    - PUSH:ACCESSORY_VERTICAL
-
-# Complements for accessory selection
-complements:
-  VERTICAL: "HORIZONTAL"
-  HORIZONTAL: "VERTICAL"
-
-# Power/RFD resolution based on State
-power_selection:
-  GREEN: "HIGH"
-  ORANGE: "LOW"
-  RED: "UPPER"

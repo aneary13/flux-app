@@ -33,64 +33,46 @@ def auto_seed_database(supabase: Client, dummy_user_id: str) -> None:
     try:
         logger.info("FLUX Engine: Running database state check...")
 
-        # 1. Lightweight check: Do we have any exercises?
-        ex_check = supabase.table("exercises").select("id").limit(1).execute()
+        # -----------------------------------------
+        # Sync Exercises (always upsert from YAML)
+        # Uses UNIQUE(name) constraint — updates metadata for existing exercises,
+        # inserts new ones. Historical workout_sets referencing removed exercises
+        # are unaffected (exercise_name is a text field).
+        # -----------------------------------------
+        exercises_data = load_yaml("library.yaml")
 
-        # 2. Lightweight check: Do we have the core user_configs?
-        cfg_check = (
-            supabase.table("user_configs")
-            .select("id")
-            .eq("user_id", dummy_user_id)
-            .limit(1)
-            .execute()
-        )
+        exercise_payload = []
+        for ex in exercises_data.get("catalog", []):
+            exercise_payload.append(
+                {
+                    "name": ex["name"],
+                    "is_unilateral": ex["settings"].get("unilateral", False),
+                    "load_type": ex["settings"].get("load", "WEIGHTED"),
+                    "tracking_unit": ex["settings"].get("unit", "REPS"),
+                }
+            )
 
-        if ex_check.data and cfg_check.data:
-            logger.info("FLUX Engine: DB populated. Skipping auto-seed.")
-            return
-
-        logger.info("FLUX Engine: Empty DB detected. Auto-seeding YAML logic...")
+        supabase.table("exercises").upsert(
+            cast(Any, exercise_payload), on_conflict="name"
+        ).execute()
+        logger.info(f"FLUX Engine: Synced {len(exercise_payload)} exercises.")
 
         # -----------------------------------------
-        # Seed Exercises
+        # Sync System Configs (always upsert from YAML)
+        # These are system-level definitions, not user data.
+        # User state (slug="state") is not in CONFIG_SLUGS and is never touched.
         # -----------------------------------------
-        if not ex_check.data:
-            exercises_data = load_yaml("library.yaml")
+        config_payloads = []
+        for slug in CONFIG_SLUGS:
+            yaml_data = load_yaml(f"{slug}.yaml")
+            config_payloads.append({"user_id": dummy_user_id, "slug": slug, "data": yaml_data})
 
-            # Format according to your relational schema requirements
-            exercise_payload = []
-            for ex in exercises_data.get("catalog", []):
-                exercise_payload.append(
-                    {
-                        "name": ex["name"],
-                        "is_unilateral": ex["settings"].get("unilateral", False),
-                        "load_type": ex["settings"].get("load", "WEIGHTED"),
-                        "tracking_unit": ex["settings"].get("unit", "REPS"),
-                    }
-                )
+        supabase.table("user_configs").upsert(
+            cast(Any, config_payloads), on_conflict="user_id, slug"
+        ).execute()
+        logger.info("FLUX Engine: Synced system configs from YAML.")
 
-            # Upsert relying on the UNIQUE(name) constraint - Cast payload to Any
-            supabase.table("exercises").upsert(
-                cast(Any, exercise_payload), on_conflict="name"
-            ).execute()
-            logger.info(f"FLUX Engine: Seeded {len(exercise_payload)} exercises.")
-
-        # -----------------------------------------
-        # Seed User Configs (The Brain)
-        # -----------------------------------------
-        if not cfg_check.data:
-            config_payloads = []
-            for slug in CONFIG_SLUGS:
-                yaml_data = load_yaml(f"{slug}.yaml")
-                config_payloads.append({"user_id": dummy_user_id, "slug": slug, "data": yaml_data})
-
-            # Upsert relying on the UNIQUE(user_id, slug) constraint - Cast payload to Any
-            supabase.table("user_configs").upsert(
-                cast(Any, config_payloads), on_conflict="user_id, slug"
-            ).execute()
-            logger.info("FLUX Engine: Seeded core user_configs.")
-
-        logger.info("FLUX Engine: Auto-seed completed successfully.")
+        logger.info("FLUX Engine: Startup sync completed successfully.")
 
     except FileNotFoundError as fnf:
         logger.critical(f"FLUX Engine: Initialization aborted. {str(fnf)}")

@@ -139,41 +139,114 @@ catalog:
       load: BODYWEIGHT
       unit: SECS
 
-  # --- RFD (Power) ---
-  - name: "Hurdle Jump"
+  # --- EXTENSIVE PLYOS (Checklist - Bodyweight) ---
+  - name: "Squat Jump"
     settings:
       unilateral: false
       load: BODYWEIGHT
-      unit: REPS
+      unit: CHECKLIST
 
-  - name: "Box Jump"
-    settings:
-      unilateral: false
-      load: BODYWEIGHT
-      unit: REPS
-
-  - name: "Hang Power Clean"
-    settings:
-      unilateral: false
-      load: WEIGHTED
-      unit: REPS
-
-  - name: "Snatch Grip High Pull"
-    settings:
-      unilateral: false
-      load: WEIGHTED
-      unit: REPS
-
-  - name: "MB Chest Pass"
-    settings:
-      unilateral: false
-      load: WEIGHTED
-      unit: REPS
-
-  - name: "MB Rotational Throw"
+  - name: "Single Leg Pogo"
     settings:
       unilateral: true
-      load: WEIGHTED
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Single Leg Lateral Pogo"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Heiden"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Criss Cross Pogo"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Scissor Jump"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Single Leg Zig Zag"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Single Leg Lateral Zig Zag"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  - name: "Rotational Pogo"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: CHECKLIST
+
+  # --- INTENSIVE PLYOS (Tracked - Bodyweight) ---
+  - name: "Seated to Vertical Jump"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Seated Broad Jump"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Single Leg Hop"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Knee to Box Jump"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Band Assisted Push Up"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Lateral Jump"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Short Contact Depth Jump"
+    settings:
+      unilateral: false
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Band Assisted Single Leg Hop"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
+      unit: REPS
+
+  - name: "Lateral Box Jump"
+    settings:
+      unilateral: true
+      load: BODYWEIGHT
       unit: REPS
 
   # --- ISOMETRICS ---

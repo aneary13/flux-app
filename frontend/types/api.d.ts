@@ -135,7 +135,8 @@ export interface paths {
     put?: never;
     /**
      * Complete Session
-     * @description Finalizes the session and securely updates the UTC timestamp for the anchor pattern.
+     * @description Finalizes the session. Only updates progression state for exercises
+     *     that were actually performed (have logged sets).
      */
     post: operations['complete_session_sessions__session_id__complete_post'];
     delete?: never;
@@ -212,6 +213,13 @@ export interface components {
     GeneratedBlock: {
       /** Type */
       type: string;
+      /** Label */
+      label: string;
+      /** Components */
+      components: components['schemas']['GeneratedComponent'][];
+    };
+    /** GeneratedComponent */
+    GeneratedComponent: {
       /** Label */
       label: string;
       /** Exercises */
@@ -327,6 +335,10 @@ export interface components {
       conditioning_levels: {
         [key: string]: number;
       };
+      /** Next Pattern */
+      next_pattern?: string | null;
+      /** Next Conditioning Protocol */
+      next_conditioning_protocol?: string | null;
     };
     /** ValidationError */
     ValidationError: {

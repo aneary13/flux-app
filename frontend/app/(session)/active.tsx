@@ -93,9 +93,6 @@ export default function ActiveSessionScreen() {
   };
 
   const renderBlockSlide = ({ item }: { item: (typeof blocks)[0] }) => {
-    const checklistExercises = item.exercises.filter((ex) => ex.tracking_unit === 'CHECKLIST');
-    const standardExercises = item.exercises.filter((ex) => ex.tracking_unit !== 'CHECKLIST');
-
     return (
       <View style={[styles.slideContainer, { width }]}>
         <Card style={styles.blockCard} padding={0}>
@@ -109,31 +106,38 @@ export default function ActiveSessionScreen() {
               {item.label}
             </Typography>
 
-            {checklistExercises.length > 0 && (
-              <ChecklistCard
-                exercises={checklistExercises}
-                title={
-                  item.type === 'PREP'
-                    ? 'Mobility & Prep'
-                    : item.type === 'POWER'
-                      ? 'Plyometrics'
-                      : undefined
-                }
-              />
-            )}
+            {item.components.map((comp, compIndex) => {
+              const checklistExercises = comp.exercises.filter(
+                (ex) => ex.tracking_unit === 'CHECKLIST'
+              );
+              const standardExercises = comp.exercises.filter(
+                (ex) => ex.tracking_unit !== 'CHECKLIST'
+              );
 
-            {standardExercises.length > 0 && (
-              <View
-                style={{
-                  gap: theme.spacing.md,
-                  marginTop: checklistExercises.length > 0 ? theme.spacing.md : 0,
-                }}
-              >
-                {standardExercises.map((ex, exIndex) => (
-                  <ExerciseCard key={ex.name || `ex-${exIndex}`} exercise={ex} />
-                ))}
-              </View>
-            )}
+              return (
+                <View
+                  key={comp.label || `comp-${compIndex}`}
+                  style={compIndex > 0 ? { marginTop: theme.spacing.md } : undefined}
+                >
+                  {checklistExercises.length > 0 && (
+                    <ChecklistCard exercises={checklistExercises} title={comp.label} />
+                  )}
+
+                  {standardExercises.length > 0 && (
+                    <View
+                      style={{
+                        gap: theme.spacing.md,
+                        marginTop: checklistExercises.length > 0 ? theme.spacing.md : 0,
+                      }}
+                    >
+                      {standardExercises.map((ex, exIndex) => (
+                        <ExerciseCard key={ex.name || `ex-${exIndex}`} exercise={ex} />
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </ScrollView>
         </Card>
       </View>

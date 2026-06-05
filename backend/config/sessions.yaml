@@ -1,55 +1,70 @@
 # Session structures
 
-PERFORMANCE:
+GREEN_ORANGE:
   blocks:
-    - label: "Mobility & Activation"
+    - label: "Warm-Up"
       type: "PREP"
       components:
-        - "MOBILITY:DYNAMIC"    # Static: Always do the flow
-        - "ISOMETRIC:PATELLAR"  # Static: Always do the knee iso
-        - "CORE"                # Dynamic: Rotates TRANSVERSE -> SAGITTAL -> FRONTAL
+        - key: "MOBILITY:DYNAMIC"
+          label: "Mobility"
+        - key: "PLYO:EXTENSIVE"
+          label: "Extensive Plyos"
+        - key: "CORE"
+          label: "Core"
 
-    - label: "Plyometrics & Power"
+    - label: "Power"
       type: "POWER"
       components:
-        - "RFD"                 # Dynamic: Resolves based on state
+        - key: "POWER_BLOCK"
+          label: "Intensive Plyos"
+          orange_label: "Isometrics"
 
     - label: "Primary Strength"
       type: "MAIN"
       components:
-        - "MAIN_PATTERN"        # Dynamic: Resolves MAIN (SQUAT, HINGE, etc.)
+        - key: "MAIN_PATTERN"
+          label: "Main Lift"
 
     - label: "Accessory Lifts"
       type: "ACCESSORIES"
       components:
-        - "RELATED_ACCESSORIES" # Dynamic: Resolves based on MAIN
+        - key: "PAIRED_ACCESSORIES"
+          label: "Accessories"
 
     - label: "Off-Feet Conditioning"
       type: "CONDITIONING"
       components:
-        - "CONDITIONING"        # Dynamic: Resolves via protocol level
+        - key: "CONDITIONING"
+          label: "Conditioning"
 
-RECOVERY:
+RED:
   blocks:
     - label: "Mobility & Core"
       type: "PREP"
       components:
-        - "MOBILITY:DYNAMIC"    # Static: Always do the flow
-        - "CORE"                # Dynamic: Rotates TRANSVERSE -> SAGITTAL -> FRONTAL
+        - key: "MOBILITY:DYNAMIC"
+          label: "Mobility"
+        - key: "CORE"
+          label: "Core"
 
     - label: "Isometrics"
       type: "MAIN"
       components:
-        - "ISOMETRIC:PATELLAR"  # Static: Always do the knee iso
-        - "ISOMETRIC:HAMSTRING" # Static: Always do the hamstring iso
+        - key: "ISOMETRIC:PATELLAR"
+          label: "Patellar Isometric"
+        - key: "ISOMETRIC:HAMSTRING"
+          label: "Hamstring Isometric"
 
     - label: "Upper Body Accessories"
       type: "ACCESSORY"
       components:
-        - "PUSH:ACCESSORY"      # Dynamic: Picks highest debt (e.g. Vertical)
-        - "PULL:ACCESSORY"      # Dynamic: Sees the Push choice and picks complement (Horizontal)
+        - key: "PUSH:ACCESSORY"
+          label: "Push Accessory"
+        - key: "PULL:ACCESSORY"
+          label: "Pull Accessory"
 
     - label: "Off-Feet Conditioning"
       type: "CONDITIONING"
       components:
-        - "CONDITIONING:SS"     # Static: Always do the steady state
+        - key: "CONDITIONING:SS"
+          label: "Conditioning"
