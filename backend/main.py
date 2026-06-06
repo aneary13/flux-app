@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import os
-import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -490,47 +489,94 @@ def complete_session(session_id: str, request: CompleteSessionRequest) -> dict[s
 # --- AI Coach Helpers ---
 
 
-def _fetch_coach_context() -> tuple[
-    dict[str, Any], int, int, dict[str, int], dict[str, Any] | None
-]:
+def _fetch_coach_context() -> dict[str, Any]:
     """
-    Synchronous helper to fetch context for the AI coach prompt.
-    Returns: (last_trained, count_7d, count_30d, conditioning_levels, last_session_dict)
+    Synchronous helper that gathers all training context for the AI coach prompt.
+    Pre-computes derived values so the prompt builder can stay clean.
     """
-    # 1. Fetch State Document (Contains Pattern Debts & Conditioning Levels)
-    state_response = (
+    now = datetime.now(UTC)
+
+    # 1. Fetch state document + logic config
+    configs_response = (
         supabase.table("user_configs")
-        .select("data")
+        .select("slug, data")
         .eq("user_id", DUMMY_USER_ID)
-        .eq("slug", "state")
+        .in_("slug", ["state", "logic"])
         .execute()
     )
-    state_list = cast(list[dict[str, Any]], state_response.data)
+    configs_by_slug = {
+        row["slug"]: row["data"] for row in cast(list[dict[str, Any]], configs_response.data)
+    }
 
-    last_trained: dict[str, Any] = {}
-    conditioning_levels: dict[str, int] = {}
+    state_data = configs_by_slug.get("state", {})
+    logic_config = configs_by_slug.get("logic", {})
 
-    if state_list and state_list[0].get("data"):
-        state_data = cast(dict[str, Any], state_list[0]["data"])
-        last_trained = state_data.get("last_trained", {})
-        conditioning_levels = state_data.get("conditioning_levels", {})
+    last_trained: dict[str, Any] = state_data.get("last_trained", {})
+    conditioning_levels: dict[str, int] = state_data.get("conditioning_levels", {})
+    last_conditioning_protocol: str | None = state_data.get("last_conditioning_protocol")
 
-    now = datetime.now(UTC)
+    # 2. Compute next pattern from rotation
+    rotation: list[str] = logic_config.get("rotation_order", ["SQUAT", "PUSH", "HINGE", "PULL"])
+    next_pattern = rotation[0]
+    if last_trained and not all(v is None for v in last_trained.values()):
+        most_recent_pattern = None
+        most_recent_time: datetime | None = None
+        for p in rotation:
+            ts = last_trained.get(p)
+            if ts:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                if most_recent_time is None or dt > most_recent_time:
+                    most_recent_time = dt
+                    most_recent_pattern = p
+        if most_recent_pattern:
+            idx = rotation.index(most_recent_pattern)
+            next_pattern = rotation[(idx + 1) % len(rotation)]
+
+    # 3. Compute days since each pattern
+    days_since: dict[str, int | None] = {}
+    for pattern in rotation:
+        ts = last_trained.get(pattern)
+        if ts:
+            last_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            days_since[pattern] = (now - last_dt).days
+        else:
+            days_since[pattern] = None
+
+    # 4. Compute next conditioning protocol
+    if last_conditioning_protocol == "HIIT":
+        next_conditioning = "SIT"
+    elif last_conditioning_protocol == "SIT":
+        next_conditioning = "HIIT"
+    else:
+        next_conditioning = "HIIT"
+
+    # 5. Derive last session info from state doc (reflects actual performance, not prescription)
+    last_session_pattern: str | None = None
+    days_since_last_session: int | None = None
+    most_recent_time = None
+    for pattern_name in rotation:
+        ts = last_trained.get(pattern_name)
+        if ts:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            if most_recent_time is None or dt > most_recent_time:
+                most_recent_time = dt
+                last_session_pattern = pattern_name
+    if most_recent_time:
+        days_since_last_session = (now - most_recent_time).days
+
+    # 6. Session frequency counts (these track completed sessions including empty ones,
+    # which is fine for a rough consistency measure)
     seven_days_ago = (now - timedelta(days=7)).isoformat()
     thirty_days_ago = (now - timedelta(days=30)).isoformat()
 
-    # 2. Fetch last 7 days of sessions (Order by newest first to grab the last session)
     sessions_7d_resp = (
         supabase.table("workout_sessions")
-        .select("id, archetype, anchor_pattern")
+        .select("id")
         .eq("user_id", DUMMY_USER_ID)
         .eq("status", "COMPLETED")
         .gte("completed_at", seven_days_ago)
-        .order("completed_at", desc=True)
         .execute()
     )
-
-    # 3. Fetch 30 day count
     sessions_30d_resp = (
         supabase.table("workout_sessions")
         .select("id")
@@ -540,124 +586,81 @@ def _fetch_coach_context() -> tuple[
         .execute()
     )
 
-    sessions_7d = cast(list[dict[str, Any]], sessions_7d_resp.data)
-    count_7d = len(sessions_7d)
-    count_30d = len(cast(list[dict[str, Any]], sessions_30d_resp.data))
+    return {
+        "next_pattern": next_pattern,
+        "next_conditioning": next_conditioning,
+        "days_since": days_since,
+        "conditioning_levels": conditioning_levels,
+        "count_7d": len(cast(list[dict[str, Any]], sessions_7d_resp.data)),
+        "count_30d": len(cast(list[dict[str, Any]], sessions_30d_resp.data)),
+        "last_session_pattern": last_session_pattern,
+        "days_since_last_session": days_since_last_session,
+    }
 
-    # Grab the single most recent session for extra context
-    last_session = sessions_7d[0] if sessions_7d else None
 
-    return last_trained, count_7d, count_30d, conditioning_levels, last_session
-
-
-def _build_coach_prompt(
-    last_trained: dict[str, Any],
-    count_7d: int,
-    count_30d: int,
-    cond_levels: dict[str, int],
-    last_session: dict[str, Any] | None,
-    local_hour: int,
-    local_day: str,
-) -> str:
-
-    now = datetime.now(UTC)
-
-    # --- PYTHON PRE-COMPUTATION ---
-    longest_overdue_pattern = "Any"
-    max_days = -1
-
-    for pattern in ["SQUAT", "HINGE", "PUSH", "PULL"]:
-        ts = last_trained.get(pattern)
-        if not ts:
-            max_days = 999
-            longest_overdue_pattern = pattern
-            break
-        else:
-            last_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-            days = (now - last_dt).days
-            if days > max_days:
-                max_days = days
-                longest_overdue_pattern = pattern
-
-    days_str = f"{max_days} days" if max_days != 999 else "a while"
-
+def _build_coach_prompt(ctx: dict[str, Any], local_hour: int, local_day: str) -> str:
     if local_hour < 12:
-        time_of_day = "Morning"
+        time_of_day = "morning"
     elif local_hour < 18:
-        time_of_day = "Afternoon"
+        time_of_day = "afternoon"
     else:
-        time_of_day = "Evening"
+        time_of_day = "evening"
 
-    # --- OPTIONAL CONTEXT FORMATTING ---
-    last_session_context = ""
-    if last_session:
-        anchor = last_session.get("anchor_pattern") or last_session.get("archetype", "")
-        if anchor:
-            last_session_context = f"- Last workout focused on: {anchor}\n"
+    # Format days-since into readable lines
+    pattern_lines = []
+    for pattern, days in ctx["days_since"].items():
+        if days is None:
+            pattern_lines.append(f"  {pattern}: never trained")
+        elif days == 0:
+            pattern_lines.append(f"  {pattern}: trained today")
+        elif days == 1:
+            pattern_lines.append(f"  {pattern}: 1 day ago")
+        else:
+            pattern_lines.append(f"  {pattern}: {days} days ago")
 
-    cond_context = ""
-    if cond_levels:
-        cond_str = ", ".join([f"{k} Level {v}" for k, v in cond_levels.items()])
-        cond_context = f"- Conditioning progress: {cond_str}\n"
+    cond = ctx["conditioning_levels"]
+    cond_lines = [f"  {k}: Level {v}" for k, v in cond.items() if k != "SS"]
 
-    # --- RANDOMIZED INSTRUCTION VECTOR ---
-    last_focus = (last_session or {}).get("anchor_pattern") or (last_session or {}).get(
-        "archetype", "recent"
-    )
-    instruction_angles = [
-        (
-            f"Focus heavily on the fact that today is {local_day}. "
-            f"Make it feel like a fresh opportunity."
-        ),
-        (
-            f"Acknowledge their rolling 30-day consistency ({count_30d} sessions), "
-            f"then pivot to today's {longest_overdue_pattern} focus."
-        ),
-        (
-            f"Keep it very brief and philosophical about showing up, "
-            f"then mention the {longest_overdue_pattern}."
-        ),
-        (
-            f"If they had a recent session, reference how that {last_focus} session "
-            f"sets them up perfectly for today's {longest_overdue_pattern}."
-        ),
-    ]
-    chosen_angle = secrets.choice(instruction_angles)
-
-    # --- THE PROMPT ---
-    tone_rule_3 = (
-        "3. CRITICAL: NEVER use the phrase 'this week' or 'this month' when referring "
-        "to the last 7 days or the last 30 days, respectively. Always refer to "
-        "'the last few days' or 'recent momentum' to avoid calendar confusion. "
-        "You can use the phrases 'this week' and 'this month' in reference to "
-        "the calendar periods."
-    )
+    dsl = ctx["days_since_last_session"]
+    days_since_last = "never" if dsl is None else dsl
 
     return (
-        f"You are a grounded, attentive, and supportive human fitness coach for the FLUX app. "
-        f"Generate a two-part response: a short, punchy greeting (maximum 5 words), "
-        f"and a 1-to-2 sentence message (max 30 words). "
-        f"Use a mix of the following user data to personalize the message naturally:\n"
-        f"- Time: {time_of_day} on a {local_day}\n"
-        f"- Short-term consistency: {count_7d} sessions in the last 7 days\n"
-        f"- Long-term consistency: {count_30d} sessions in the last 30 days\n"
-        f"- Focus for today: {longest_overdue_pattern} ({days_str} since last trained)\n"
-        f"{last_session_context}"
-        f"{cond_context}"
-        f"TONE RULES:\n"
-        f"1. Conversational, warm, and encouraging.\n"
-        f"2. Absolutely NO cliches ('crush it', 'legend', 'beast mode').\n"
-        f"{tone_rule_3}\n"
-        f"YOUR SPECIFIC DIRECTIVE FOR THIS MESSAGE: {chosen_angle}\n"
-        f"EXAMPLES OF EXACT JSON FORMAT WE WANT:\n"
-        f'{{"greeting": "Happy {local_day}!", '
-        f'"message": "Your consistency over the last month is really showing. '
-        f"Let's channel that into your {longest_overdue_pattern} mechanics today.\"}}\n"
-        f'{{"greeting": "Good {time_of_day.lower()}.", '
-        f'"message": "Showing up is the hardest part, and you\'re here. '
-        f"Let's get the body moving and focus on the {longest_overdue_pattern}.\"}}\n"
-        f"Respond ONLY with valid JSON matching the exact schema: "
-        f'{{"greeting": "...", "message": "..."}}'
+        "You are an experienced strength and conditioning coach. Your tone is calm, "
+        "measured, and quietly confident — like an Irish coach who lets the work speak "
+        "for itself. You're warm but not overly familiar. No forced enthusiasm, no "
+        "bro energy, no clichés. Think of a coach who nods approvingly when the work "
+        "is done and says something brief and genuine.\n\n"
+        "Generate a JSON response with two fields:\n"
+        '- "greeting": A brief, natural greeting (1-8 words). Use time of day or '
+        "day of week naturally. Never say 'mate', 'bro', or 'buddy'.\n"
+        '- "message": One calm, observational sentence (max 40 words)\n\n'
+        "TRAINING CONTEXT:\n"
+        f"- Time: {time_of_day}, {local_day}\n"
+        f"- Sessions in last 7 days: {ctx['count_7d']}\n"
+        f"- Sessions in last 30 days: {ctx['count_30d']}\n"
+        f"- Days since last session: {days_since_last}\n"
+        f"- Last session anchor pattern: {ctx['last_session_pattern'] or 'none yet'}\n"
+        f"- Next anchor pattern: {ctx['next_pattern']}\n"
+        f"- Next conditioning type: {ctx['next_conditioning']}\n"
+        f"- Days since each pattern was anchored:\n" + "\n".join(pattern_lines) + "\n"
+        "- Conditioning levels:\n" + "\n".join(cond_lines) + "\n\n"
+        "CRITICAL RULES:\n"
+        "1. Every session is FULL BODY. The anchor pattern (SQUAT, PUSH, HINGE, PULL) "
+        "is just the primary lift — each session also includes accessories, plyos, core, "
+        "and conditioning. NEVER describe a session as 'upper body', 'lower body', "
+        "'leg day', 'pull day', etc. Just say 'session' or 'training'.\n"
+        "2. NEVER assume WHEN the next session is. Don't say 'today', 'tomorrow', "
+        "'this week', or 'big day ahead'. You don't know when they're training next.\n"
+        "3. NEVER name specific exercises. The data only shows pattern categories.\n"
+        "4. NEVER use pattern codes (PULL, PUSH, SQUAT, HINGE) in the message.\n"
+        "5. Pick at most one data point that's genuinely notable — consistency streak, "
+        "a long gap, conditioning progress. If nothing stands out, just offer an encouraging "
+        "observation or leave it simple.\n"
+        "6. No clichés: crush it, beast mode, let's go, get after it, let's get it, "
+        "time to work, ready to roll. Avoid exclamation marks.\n"
+        "7. If there's a gap in training, be matter-of-fact, not guilt-tripping or "
+        "overly encouraging. A simple acknowledgement is fine.\n\n"
+        'Respond ONLY with valid JSON: {"greeting": "...", "message": "..."}'
     )
 
 
@@ -666,7 +669,7 @@ async def _call_groq(prompt: str) -> AIResponse:
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
-        max_tokens=60,
+        max_tokens=150,
     )
     content = resp.choices[0].message.content or ""
     data = json.loads(content)
@@ -680,21 +683,9 @@ async def get_coach_message(local_hour: int, local_day: str = "Today") -> AIResp
     Falls back gracefully on timeout or validation failure.
     """
     try:
-        # Unpack the newly expanded context
-        last_trained, count_7d, count_30d, cond_levels, last_session = await asyncio.to_thread(
-            _fetch_coach_context
-        )
-
-        prompt = _build_coach_prompt(
-            last_trained, count_7d, count_30d, cond_levels, last_session, local_hour, local_day
-        )
-
+        ctx = await asyncio.to_thread(_fetch_coach_context)
+        prompt = _build_coach_prompt(ctx, local_hour, local_day)
         result = await asyncio.wait_for(_call_groq(prompt), timeout=2.0)
-
-        # If Groq returns bad data, AIResponse(**data) inside _call_groq will
-        # raise a ValidationError, which instantly drops to the except block.
-        result = await asyncio.wait_for(_call_groq(prompt), timeout=2.0)
-
         return result
     except Exception as e:
         logger.error(f"AI Coach failed: {e}")
